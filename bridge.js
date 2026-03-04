@@ -53,7 +53,7 @@
       var messageHandlers = [];
       var mockHandler = null;
       var idCounter = 0;
-      var platform = nativeAndroid ? 'android' : (nativeIOS ? 'ios' : 'desktop');
+      var _platform = nativeAndroid ? 'android' : (nativeIOS ? 'ios' : 'desktop');
 
       var readyResolve;
       var readyPromise = new Promise(function (resolve) {
@@ -71,7 +71,7 @@
       }
 
       function generateId() {
-        return 'msg_' + Date.now() + '_' + (++idCounter) + '_' + Math.random().toString(36).substr(2, 9);
+        return 'msg_' + Date.now() + '_' + (++idCounter) + '_' + Math.random().toString(36).substring(2, 11);
       }
 
       function validateMessage(message) {
@@ -173,7 +173,6 @@
 
       var bridge = {
         schemaVersion: SCHEMA_VERSION,
-        platform: platform,
 
         ready: function () {
           return readyPromise;
@@ -187,13 +186,15 @@
         call: function (message, options) {
           options = options || {};
           return new Promise(function (resolve, reject) {
+            var id;
             try {
               validateMessage(message);
-              var id = generateId();
+              id = generateId();
               var timeout = options.timeout != null ? options.timeout : DEFAULT_TIMEOUT;
+              var version = options.version != null ? options.version : SCHEMA_VERSION;
 
               var fullMessage = {
-                version: SCHEMA_VERSION,
+                version: version,
                 id: id,
                 data: message.data
               };
@@ -213,6 +214,7 @@
 
               sendToNative(fullMessage);
             } catch (err) {
+              if (id) cleanupPromise(id);
               debugLog('Call failed:', err);
               reject(err);
             }
@@ -237,7 +239,7 @@
           if (handler !== null && typeof handler !== 'function') throw new Error('Mock handler must be a function or null');
           mockHandler = handler;
           if (handler) {
-            platform = 'desktop';
+            _platform = 'desktop';
             debugLog('Mock handler set -- desktop testing mode active');
           }
         },
@@ -246,12 +248,17 @@
           return {
             pendingRequests: Object.keys(pendingPromises).length,
             schemaVersion: SCHEMA_VERSION,
-            platform: platform,
+            platform: _platform,
             handlers: messageHandlers.length,
             debugEnabled: debug
           };
         }
       };
+
+      Object.defineProperty(bridge, 'platform', {
+        get: function () { return _platform; },
+        enumerable: true
+      });
 
       // Expose global callbacks for native to invoke
       window[CALLBACK_RESPONSE] = handleResponse;
@@ -270,12 +277,12 @@
         readyResolve();
         try {
           window.dispatchEvent(new CustomEvent('bridgeReady', {
-            detail: { schemaVersion: SCHEMA_VERSION, platform: platform }
+            detail: { schemaVersion: SCHEMA_VERSION, platform: _platform }
           }));
         } catch (e) {
           console.error('[' + BRIDGE_NAME + '] Failed to dispatch ready event:', e);
         }
-        console.log('[' + BRIDGE_NAME + '] Initialized (v' + SCHEMA_VERSION + ', ' + platform + ') in ' + ms + 'ms');
+        console.log('[' + BRIDGE_NAME + '] Initialized (v' + SCHEMA_VERSION + ', ' + _platform + ') in ' + ms + 'ms');
       }, 0);
     })();
   } catch (err) {

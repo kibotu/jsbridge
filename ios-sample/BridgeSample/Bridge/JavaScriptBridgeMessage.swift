@@ -53,28 +53,6 @@ struct JavaScriptBridgeMessage: Codable {
     }
 }
 
-/// Unified response format: `{ id, data?, error? }`.
-///
-/// If `error` is present → failure. Otherwise → success.
-/// The redundant `success` boolean has been removed to align
-/// Android and iOS on a single response shape.
-struct JavaScriptBridgeResponse: Codable {
-    let id: String
-    let data: [String: AnyCodable]?
-    let error: ErrorInfo?
-    
-    struct ErrorInfo: Codable {
-        let code: String
-        let message: String
-    }
-    
-    init(id: String, data: [String: AnyCodable]? = nil, error: ErrorInfo? = nil) {
-        self.id = id
-        self.data = data
-        self.error = error
-    }
-}
-
 /// Helper for encoding/decoding dynamic JSON values
 ///
 /// **Why needed?**

@@ -2,6 +2,27 @@ import Foundation
 import WebKit
 import Orchard
 
+/// Weak proxy to avoid the WKUserContentController retain cycle.
+///
+/// `WKUserContentController.add(_:name:)` retains its delegate strongly.
+/// Without this proxy, the bridge and the WebView's content controller form a retain cycle:
+/// contentController -> bridge -> (weak) webView -> configuration -> contentController.
+private class LeakAvoider: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+
+    init(delegate: WKScriptMessageHandler) {
+        self.delegate = delegate
+        super.init()
+    }
+
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        delegate?.userContentController(userContentController, didReceive: message)
+    }
+}
+
 /// Main JavaScript bridge coordinator for WKWebView ↔ native communication.
 ///
 /// Configurable bridge name (default: `jsbridge`). The same name is used for:
@@ -14,6 +35,7 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
     private var handlers: [BridgeCommand] = []
     private weak var webView: WKWebView?
     private weak var viewController: UIViewController?
+    private var bridgeScriptInjected = false
 
     let name: String
 
@@ -43,7 +65,7 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
 
     private func setupMessageHandler() {
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: name)
-        webView?.configuration.userContentController.add(self, name: name)
+        webView?.configuration.userContentController.add(LeakAvoider(delegate: self), name: name)
     }
 
     private func registerCommandHandlers() {
@@ -95,7 +117,13 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
     }
 
     /// Injects the unified bridge JavaScript into the WebView at document start.
+    /// Guards against duplicate injection to prevent WKUserScript accumulation.
     func injectBridgeScript() {
+        guard !bridgeScriptInjected else {
+            Orchard.v("[Bridge] Bridge script already injected, skipping")
+            return
+        }
+
         let script = JavaScriptBridgeScript.source(bridgeName: name, schemaVersion: schemaVersion)
         let userScript = WKUserScript(
             source: script,
@@ -104,6 +132,7 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         )
 
         webView?.configuration.userContentController.addUserScript(userScript)
+        bridgeScriptInjected = true
         Orchard.v("[Bridge] Bridge script injected (name=\(name), schema v\(schemaVersion))")
     }
 
@@ -135,7 +164,10 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
 
         guard let message = try? decoder.decode(JavaScriptBridgeMessage.self, from: data) else {
             Orchard.e("[Bridge] Could not decode message: \(messageString)")
-            sendError(id: "unknown", error: .invalidMessage)
+            let rawId = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["id"] as? String
+            if let rawId = rawId {
+                sendError(id: rawId, error: .invalidMessage)
+            }
             return
         }
 
@@ -145,7 +177,7 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         }
 
         let action = message.data.action
-        let content = message.data.content?.mapValues { $0.value }
+        let content = message.data.content?.compactMapValues { $0.value is NSNull ? nil : $0.value }
 
         Orchard.v("[Bridge] Received action: \(action)")
 

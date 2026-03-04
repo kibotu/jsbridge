@@ -838,7 +838,13 @@ console.log(jsbridge.schemaVersion); // → 1
         var ts = new Date().toLocaleTimeString();
         var entry = document.createElement('div');
         entry.className = 'console-entry ' + type;
-        entry.innerHTML = '<span class="timestamp">[' + ts + ']</span><span>' + message + '</span>';
+        var tsSpan = document.createElement('span');
+        tsSpan.className = 'timestamp';
+        tsSpan.textContent = '[' + ts + ']';
+        var msgSpan = document.createElement('span');
+        msgSpan.textContent = message;
+        entry.appendChild(tsSpan);
+        entry.appendChild(msgSpan);
         consoleEl.insertBefore(entry, consoleEl.firstChild);
         while (consoleEl.children.length > 50) consoleEl.removeChild(consoleEl.lastChild);
     }
@@ -935,6 +941,18 @@ console.log(jsbridge.schemaVersion); // → 1
         return bridge.call(msg);
     }
 
+    function deviceInfoRow(label, value) {
+        var row = document.createElement('div');
+        row.className = 'device-info-item';
+        var strong = document.createElement('strong');
+        strong.textContent = label + ':';
+        var span = document.createElement('span');
+        span.textContent = value || '?';
+        row.appendChild(strong);
+        row.appendChild(span);
+        return row;
+    }
+
     async function getDeviceInfo() {
         try {
             log('Requesting device info...', 'info');
@@ -942,12 +960,12 @@ console.log(jsbridge.schemaVersion); // → 1
             log('Device info received', 'success');
             var el = document.getElementById('deviceInfo');
             el.style.display = 'block';
-            el.innerHTML =
-                '<div class="device-info-item"><strong>Platform:</strong> <span>' + (info.platform || '?') + '</span></div>' +
-                '<div class="device-info-item"><strong>OS Version:</strong> <span>' + (info.osVersion || '?') + '</span></div>' +
-                '<div class="device-info-item"><strong>Model:</strong> <span>' + (info.model || '?') + '</span></div>' +
-                '<div class="device-info-item"><strong>App Version:</strong> <span>' + (info.appVersion || '?') + '</span></div>';
-        } catch (e) { log('Error: ' + e.message, 'error'); }
+            el.textContent = '';
+            el.appendChild(deviceInfoRow('Platform', info.platform));
+            el.appendChild(deviceInfoRow('OS Version', info.osVersion));
+            el.appendChild(deviceInfoRow('Model', info.model));
+            el.appendChild(deviceInfoRow('App Version', info.appVersion));
+        } catch (e) { log('Error: ' + e.message, 'error'); throw e; }
     }
 
     async function checkNetwork() {
@@ -955,7 +973,7 @@ console.log(jsbridge.schemaVersion); // → 1
             log('Checking network...', 'info');
             var s = await call('networkState');
             log('Network: ' + (s.connected ? 'Connected' : 'Disconnected') + ' (' + (s.type || '?') + ')', 'success');
-        } catch (e) { log('Error: ' + e.message, 'error'); }
+        } catch (e) { log('Error: ' + e.message, 'error'); throw e; }
     }
 
     async function openSettings() {
@@ -974,13 +992,13 @@ console.log(jsbridge.schemaVersion); // → 1
             document.getElementById('insetRight').textContent = (r.safeArea && r.safeArea.right || 0) + 'px';
             document.getElementById('insetBottom').textContent = (r.safeArea && r.safeArea.bottom || 0) + 'px';
             document.getElementById('insetLeft').textContent = (r.safeArea && r.safeArea.left || 0) + 'px';
-        } catch (e) { log('Error: ' + e.message, 'error'); }
+        } catch (e) { log('Error: ' + e.message, 'error'); throw e; }
     }
 
     // -- UI actions
     async function showToast() {
         try { log('Showing toast...', 'info'); await call('showToast', { message: 'Hello from WebView!', duration: 'short' }); log('Toast shown', 'success'); }
-        catch (e) { log('Error: ' + e.message, 'error'); }
+        catch (e) { log('Error: ' + e.message, 'error'); throw e; }
     }
 
     async function showAlert() {
@@ -1084,7 +1102,7 @@ console.log(jsbridge.schemaVersion); // → 1
     // -- haptic
     async function triggerHaptic() {
         try { await call('haptic', { vibrate: true }); log('Haptic triggered', 'success'); }
-        catch (e) { log('Error: ' + e.message, 'error'); }
+        catch (e) { log('Error: ' + e.message, 'error'); throw e; }
     }
 
     async function multipleHaptics() {
@@ -1117,7 +1135,7 @@ console.log(jsbridge.schemaVersion); // → 1
     async function copyToClipboard() {
         var text = 'Bridge Demo - ' + new Date().toISOString();
         try { await call('copyToClipboard', { text: text }); log('Copied: ' + text, 'success'); }
-        catch (e) { log('Error: ' + e.message, 'error'); }
+        catch (e) { log('Error: ' + e.message, 'error'); throw e; }
     }
 
     // -- refresh
