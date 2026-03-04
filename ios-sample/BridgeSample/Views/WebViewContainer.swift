@@ -78,22 +78,12 @@ class WebViewController: UIViewController, WKNavigationDelegate {
     }
     
     func updateContentInsets() {
-        let safeInsets = view.safeAreaInsets
-
-        let topInset: CGFloat = shouldRespectTopSafeArea ? safeInsets.top : 0
-        let bottomInset: CGFloat = shouldRespectBottomSafeArea ? safeInsets.bottom : 0
-
-        webView.scrollView.contentInset = UIEdgeInsets(
-            top: topInset,
-            left: 0,
-            bottom: bottomInset,
-            right: 0
-        )
-        webView.scrollView.scrollIndicatorInsets = webView.scrollView.contentInset
+        webView.scrollView.contentInset = .zero
+        webView.scrollView.scrollIndicatorInsets = .zero
 
         SafeAreaService.shared.pushToBridge(bridge)
 
-        Orchard.v("[WebViewController] Updated content insets - top: \(topInset), bottom: \(bottomInset)")
+        Orchard.v("[WebViewController] Updated content insets")
     }
     
     // MARK: - WKNavigationDelegate

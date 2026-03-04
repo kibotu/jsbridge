@@ -823,8 +823,12 @@ console.log(jsbridge.schemaVersion); // → 1
         setTheme(current === 'dark' ? 'light' : 'dark');
     }
 
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        setTheme('light');
+    if (window.matchMedia) {
+        var mq = window.matchMedia('(prefers-color-scheme: light)');
+        if (mq.matches) setTheme('light');
+        mq.addEventListener('change', function (e) {
+            setTheme(e.matches ? 'light' : 'dark');
+        });
     }
 
     // -- configurable bridge name ----------------------------------------

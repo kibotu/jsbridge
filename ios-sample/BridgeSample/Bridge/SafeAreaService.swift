@@ -21,25 +21,25 @@ class SafeAreaService {
         let topConfig = TopNavigationService.shared.config
         let bottomConfig = BottomNavigationService.shared.config
 
-        let statusBarHeight: CGFloat
-        if let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene }).first {
-            statusBarHeight = windowScene.statusBarManager?.statusBarFrame.height ?? 0
-        } else {
-            statusBarHeight = 0
-        }
+        let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first
+        let statusBarHeight = windowScene?.statusBarManager?.statusBarFrame.height ?? 0
+        let bottomSafeArea = windowScene?.windows.first?.safeAreaInsets.bottom ?? 0
 
-        // When top nav is visible, the VStack already places web content below it -- CSS inset = 0.
-        // When hidden, edgesIgnoringSafeArea(.top) lets content extend under the status bar -- web needs the height.
+        // When top nav is visible, the VStack already places web content below it — CSS inset = 0.
+        // When hidden, the web content extends under the status bar — CSS needs the height.
         let effectiveTop = topConfig.isVisible ? 0 : statusBarHeight
-        let effectiveBottom = bottomConfig.isVisible ? bottomBarHeight : 0
+
+        // When bottom nav is visible, the VStack places web content above it — CSS inset = 0.
+        // When hidden, the web content extends to the screen edge — CSS needs the bottom safe area.
+        let effectiveBottom = bottomConfig.isVisible ? 0 : bottomSafeArea
 
         bridge.updateSafeAreaCSS(
             insetTop: effectiveTop,
             insetBottom: effectiveBottom,
             statusBarHeight: statusBarHeight,
             topNavHeight: topConfig.isVisible ? topBarHeight : 0,
-            bottomNavHeight: effectiveBottom,
+            bottomNavHeight: bottomConfig.isVisible ? bottomBarHeight : 0,
             systemNavHeight: 0
         )
     }

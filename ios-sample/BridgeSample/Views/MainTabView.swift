@@ -11,18 +11,13 @@ struct MainTabView: View {
     @ObservedObject private var systemUIState = SystemUIState.shared
     
     private var safeAreaEdgesToIgnore: Edge.Set {
-        let topInvisible = !topNavService.config.isVisible
-        let bottomInvisible = !bottomNavService.config.isVisible
-        
-        if topInvisible && bottomInvisible {
-            return .all
-        } else if topInvisible {
-            return .top
-        } else if bottomInvisible {
-            return .bottom
-        } else {
-            return []
-        }
+        return .all
+    }
+    
+    private var bottomSafeAreaInset: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.safeAreaInsets.bottom ?? 0
     }
     
     var body: some View {
@@ -83,6 +78,7 @@ struct MainTabView: View {
                         }
                     }
                     .frame(height: 50)
+                    .padding(.bottom, bottomSafeAreaInset)
                     .background(Color.surfaceColor)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -98,7 +94,7 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             currentBridge?.notifyLifecycleEvent("defocused")
         }
-        .onChange(of: themeManager.isDarkMode) { isDark in
+        .onReceive(themeManager.$isDarkMode.dropFirst()) { isDark in
             currentBridge?.sendToWeb(action: "themeChanged", content: [
                 "theme": isDark ? "dark" : "light"
             ])

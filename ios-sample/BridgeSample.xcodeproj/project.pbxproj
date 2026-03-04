@@ -42,6 +42,8 @@
 		C35C0E712EA780C000D4D420 /* NavigationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C35C0E482EA780C000D4D420 /* NavigationHandler.swift */; };
 		C35C0E722EA780C000D4D420 /* SaveSecureDataHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C35C0E4E2EA780C000D4D420 /* SaveSecureDataHandler.swift */; };
 		C35C0E7C2EA7AD3800D4D420 /* Orchard in Frameworks */ = {isa = PBXBuildFile; productRef = C35C0E7B2EA7AD3800D4D420 /* Orchard */; };
+		C35C0E802EA780C000D4D420 /* GetInsetsHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C35C0E812EA780C000D4D420 /* GetInsetsHandler.swift */; };
+		C35C0E822EA780C000D4D420 /* SafeAreaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C35C0E832EA780C000D4D420 /* SafeAreaService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -81,6 +83,8 @@
 		C35C0E572EA780C000D4D420 /* JavaScriptBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptBridge.swift; sourceTree = "<group>"; };
 		C35C0E582EA780C000D4D420 /* JavaScriptBridgeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptBridgeMessage.swift; sourceTree = "<group>"; };
 		C35C0E592EA780C000D4D420 /* JavaScriptBridgeScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptBridgeScript.swift; sourceTree = "<group>"; };
+		C35C0E812EA780C000D4D420 /* GetInsetsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetInsetsHandler.swift; sourceTree = "<group>"; };
+		C35C0E832EA780C000D4D420 /* SafeAreaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafeAreaService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -153,7 +157,7 @@
 				C35C0E422EA780C000D4D420 /* CopyToClipboardHandler.swift */,
 				C35C0E432EA780C000D4D420 /* DeviceInfoHandler.swift */,
 				C35C0E442EA780C000D4D420 /* HapticHandler.swift */,
-
+				C35C0E812EA780C000D4D420 /* GetInsetsHandler.swift */,
 				C35C0E482EA780C000D4D420 /* NavigationHandler.swift */,
 				C35C0E492EA780C000D4D420 /* NetworkStatusHandler.swift */,
 				C35C0E4A2EA780C000D4D420 /* OpenSettingsHandler.swift */,
@@ -174,6 +178,7 @@
 				C35C0E572EA780C000D4D420 /* JavaScriptBridge.swift */,
 				C35C0E582EA780C000D4D420 /* JavaScriptBridgeMessage.swift */,
 				C35C0E592EA780C000D4D420 /* JavaScriptBridgeScript.swift */,
+				C35C0E832EA780C000D4D420 /* SafeAreaService.swift */,
 			);
 			path = Bridge;
 			sourceTree = "<group>";
@@ -317,6 +322,8 @@
 				C35C0E702EA780C000D4D420 /* TrackScreenHandler.swift in Sources */,
 				C35C0E712EA780C000D4D420 /* NavigationHandler.swift in Sources */,
 				C35C0E722EA780C000D4D420 /* SaveSecureDataHandler.swift in Sources */,
+				C35C0E802EA780C000D4D420 /* GetInsetsHandler.swift in Sources */,
+				C35C0E822EA780C000D4D420 /* SafeAreaService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

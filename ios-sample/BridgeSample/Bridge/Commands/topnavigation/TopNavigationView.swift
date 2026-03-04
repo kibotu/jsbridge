@@ -61,6 +61,12 @@ struct TopNavigationView: View {
     @EnvironmentObject var themeManager: ThemeManager
     let onBackPressed: () -> Void
     
+    private var topSafeAreaInset: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.safeAreaInsets.top ?? 0
+    }
+    
     var body: some View {
         if service.config.isVisible {
             VStack(spacing: 0) {
@@ -101,6 +107,7 @@ struct TopNavigationView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+                .padding(.top, topSafeAreaInset)
                 .background(Color.surfaceColor)
                 
                 if service.config.showDivider {
