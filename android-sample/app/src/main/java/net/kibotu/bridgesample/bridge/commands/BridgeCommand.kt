@@ -1,4 +1,4 @@
-package de.check24.profis.partner.pluginapi.features.webview.bridge.commands
+package net.kibotu.bridgesample.bridge.commands
 
 /**
  * Contract for implementing a single bridge command handler (Strategy Pattern).

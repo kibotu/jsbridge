@@ -2,6 +2,7 @@ package net.kibotu.bridgesample.bridge
 
 import net.kibotu.bridgesample.bridge.commands.bottomnavigation.BottomNavigationCommand
 import net.kibotu.bridgesample.bridge.commands.CheckNetworkStatusCommand
+import net.kibotu.bridgesample.bridge.commands.GetInsetsCommand
 import net.kibotu.bridgesample.bridge.commands.CopyToClipboardCommand
 import net.kibotu.bridgesample.bridge.commands.DeviceInfoCommand
 import net.kibotu.bridgesample.bridge.commands.HapticCommand
@@ -56,10 +57,11 @@ class DefaultBridgeMessageHandler : BridgeMessageHandler {
      * unnecessary object creation on every message.
      */
     private val commands = listOf(
-        // Device & System - capabilities web needs to adapt UI/UX to device
+        // Device & System
         DeviceInfoCommand(),
         CheckNetworkStatusCommand(),
         SystemBarsCommand(),
+        GetInsetsCommand(),
         HapticCommand(),
 
         // Permissions & Settings - required for Android's runtime permission model

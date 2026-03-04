@@ -7,7 +7,7 @@ import net.kibotu.bridgesample.bridge.commands.utils.BridgeParsingUtils
 import net.kibotu.bridgesample.bridge.commands.utils.BridgeResponseUtils
 import com.github.florent37.application.provider.ActivityProvider
 import com.github.florent37.application.provider.application
-import de.check24.profis.partner.pluginapi.features.webview.bridge.commands.BridgeCommand
+import net.kibotu.bridgesample.bridge.commands.BridgeCommand
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject

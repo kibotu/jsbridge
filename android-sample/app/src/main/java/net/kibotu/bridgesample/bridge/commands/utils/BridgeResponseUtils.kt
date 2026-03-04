@@ -20,7 +20,7 @@ object BridgeResponseUtils {
     /**
      * Creates a simple success response.
      */
-    fun createSuccessResponse(): JSONObject = JSONObject().put("success", true)
+    fun createSuccessResponse(): JSONObject = JSONObject()
 
 }
 

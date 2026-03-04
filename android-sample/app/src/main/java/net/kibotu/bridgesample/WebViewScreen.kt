@@ -40,7 +40,7 @@ fun WebViewScreen(
 
                 // Attach bridge
                 val bridge = JavaScriptBridge(this, DefaultBridgeMessageHandler())
-                addJavascriptInterface(bridge, JavaScriptBridge.BRIDGE_NAME)
+                addJavascriptInterface(bridge, JavaScriptBridge.DEFAULT_BRIDGE_NAME)
                 tag = bridge
                 onBridgeReady(bridge)
                 loadUrl(url)

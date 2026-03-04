@@ -53,14 +53,29 @@ struct JavaScriptBridgeMessage: Codable {
     }
 }
 
-/// Unified response format: `{ id, data?, error? }`.
+/// Represents a response from native to JavaScript
 ///
-/// If `error` is present → failure. Otherwise → success.
-/// The redundant `success` boolean has been removed to align
-/// Android and iOS on a single response shape.
+/// **Why separate request/response types?**
+/// - Clarifies the flow direction (native → JavaScript)
+/// - Ensures responses always include success status
+/// - Follows standard RPC patterns familiar to developers
 struct JavaScriptBridgeResponse: Codable {
+    /// The message ID this response corresponds to
+    ///
+    /// **Why include ID?** JavaScript maintains a map of pending promises by ID.
+    /// This allows it to resolve the correct promise when the response arrives.
     let id: String
+    
+    /// Whether the operation succeeded
+    ///
+    /// **Why a boolean flag?** Makes error handling explicit and prevents ambiguity.
+    /// JavaScript can quickly check success before accessing data or error fields.
+    let success: Bool
+    
+    /// The response data (if successful)
     let data: [String: AnyCodable]?
+    
+    /// Error information (if failed)
     let error: ErrorInfo?
     
     struct ErrorInfo: Codable {
@@ -68,8 +83,9 @@ struct JavaScriptBridgeResponse: Codable {
         let message: String
     }
     
-    init(id: String, data: [String: AnyCodable]? = nil, error: ErrorInfo? = nil) {
+    init(id: String, success: Bool, data: [String: AnyCodable]? = nil, error: ErrorInfo? = nil) {
         self.id = id
+        self.success = success
         self.data = data
         self.error = error
     }
@@ -126,18 +142,25 @@ struct AnyCodable: Codable {
         switch value {
         case let bool as Bool:
             try container.encode(bool)
+
         case let int as Int:
             try container.encode(int)
+
         case let double as Double:
             try container.encode(double)
+
         case let string as String:
             try container.encode(string)
+
         case let array as [Any]:
             try container.encode(array.map { AnyCodable($0) })
+
         case let dictionary as [String: Any]:
             try container.encode(dictionary.mapValues { AnyCodable($0) })
+
         case is NSNull:
             try container.encodeNil()
+
         default:
             let context = EncodingError.Context(
                 codingPath: container.codingPath,
@@ -147,4 +170,3 @@ struct AnyCodable: Codable {
         }
     }
 }
-

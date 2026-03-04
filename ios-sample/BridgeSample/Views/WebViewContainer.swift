@@ -91,8 +91,19 @@ class WebViewController: UIViewController, WKNavigationDelegate {
             right: 0
         )
         
-        // Also update scroll indicator insets to match
         webView.scrollView.scrollIndicatorInsets = webView.scrollView.contentInset
+        
+        // Push safe area values as CSS custom properties
+        bridge?.updateSafeAreaCSS(
+            insetTop: safeInsets.top,
+            insetBottom: safeInsets.bottom,
+            insetLeft: safeInsets.left,
+            insetRight: safeInsets.right,
+            statusBarHeight: safeInsets.top,
+            topNavHeight: 0,
+            bottomNavHeight: 0,
+            systemNavHeight: safeInsets.bottom
+        )
         
         Orchard.v("[WebViewController] Updated content insets - top: \(topInset), bottom: \(bottomInset)")
     }
@@ -101,6 +112,7 @@ class WebViewController: UIViewController, WKNavigationDelegate {
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Orchard.v("[WebView] Page loaded: \(webView.url?.absoluteString ?? "unknown")")
+        updateContentInsets()
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
