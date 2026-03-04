@@ -16,4 +16,6 @@ object TopNavigationService {
     fun applyConfig(newConfig: TopNavigationConfig) {
         config.value = newConfig
     }
+
+    fun currentConfig(): TopNavigationConfig = config.value
 }

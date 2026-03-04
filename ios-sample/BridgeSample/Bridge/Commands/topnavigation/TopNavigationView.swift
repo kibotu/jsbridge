@@ -58,13 +58,13 @@ class TopNavigationService: ObservableObject {
 /// Top navigation bar view
 struct TopNavigationView: View {
     @ObservedObject var service = TopNavigationService.shared
+    @EnvironmentObject var themeManager: ThemeManager
     let onBackPressed: () -> Void
     
     var body: some View {
         if service.config.isVisible {
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
-                    // Back button
                     if service.config.showBackButton {
                         Button(action: onBackPressed) {
                             Image(systemName: "chevron.left")
@@ -73,10 +73,9 @@ struct TopNavigationView: View {
                         }
                     }
                     
-                    // Logo or Title
                     if service.config.showLogo {
                         Image(systemName: "app.fill")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.accentBlue)
                             .font(.system(size: 24))
                     } else if let title = service.config.title {
                         Text(title)
@@ -86,20 +85,24 @@ struct TopNavigationView: View {
                     
                     Spacer()
                     
-                    // Profile icon
+                    Button(action: { themeManager.toggle() }) {
+                        Image(systemName: themeManager.isDarkMode ? "sun.max.fill" : "moon.fill")
+                            .foregroundColor(.accentBlue)
+                            .font(.system(size: 20))
+                    }
+                    
                     if service.config.showProfileIconWidget {
                         Button(action: {}) {
                             Image(systemName: "person.circle.fill")
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondary)
                                 .font(.system(size: 28))
                         }
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color(UIColor.systemBackground))
+                .background(Color.surfaceColor)
                 
-                // Divider
                 if service.config.showDivider {
                     Divider()
                 }
@@ -107,5 +110,33 @@ struct TopNavigationView: View {
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
+}
+
+extension Color {
+    init(light: Color, dark: Color) {
+        self.init(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
+        })
+    }
+    
+    static let accentBlue = Color(
+        light: Color(red: 5/255, green: 99/255, blue: 193/255),
+        dark: Color(red: 5/255, green: 99/255, blue: 193/255)
+    )
+    
+    static let surfaceColor = Color(
+        light: .white,
+        dark: Color(red: 30/255, green: 41/255, blue: 59/255)
+    )
+    
+    static let slateBackground = Color(
+        light: Color(red: 248/255, green: 250/255, blue: 252/255),
+        dark: Color(red: 15/255, green: 23/255, blue: 42/255)
+    )
+    
+    static let onSurfaceVariant = Color(
+        light: Color(red: 71/255, green: 85/255, blue: 105/255),
+        dark: Color(red: 203/255, green: 213/255, blue: 225/255)
+    )
 }
 

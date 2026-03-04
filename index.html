@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>JavaScript Bridge Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/neat.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/css/css.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -11,50 +17,157 @@
             padding: 0;
         }
 
+        :root {
+            --bridge-inset-top: env(safe-area-inset-top, 0px);
+            --bridge-inset-right: env(safe-area-inset-right, 0px);
+            --bridge-inset-bottom: env(safe-area-inset-bottom, 0px);
+            --bridge-inset-left: env(safe-area-inset-left, 0px);
+            --bridge-status-bar: 0px;
+            --bridge-top-nav: 0px;
+            --bridge-bottom-nav: 0px;
+            --bridge-system-nav: 0px;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --accent: #0563c1;
+            --accent-hover: #044a94;
+            --accent-soft: rgba(37, 99, 235, 0.1);
+            --border: rgba(0, 0, 0, 0.08);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --console-bg: #f1f5f9;
+            --console-border: #e2e8f0;
+            --console-text: #1e293b;
+            --console-timestamp: #64748b;
+            --info-bg: #eff6ff;
+            --info-border: #bfdbfe;
+            --info-strong: #1e40af;
+            --info-text: #2563eb;
+            --warn-bg: #fef3c7;
+            --warn-border: #fbbf24;
+            --warn-text: #92400e;
+            --badge-bg: #eff6ff;
+            --badge-text: #1e40af;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --accent: #0563c1;
+            --accent-hover: #044a94;
+            --accent-soft: rgba(59, 130, 246, 0.15);
+            --border: rgba(255, 255, 255, 0.1);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --console-bg: #0f172a;
+            --console-border: #1e293b;
+            --console-text: #10b981;
+            --console-timestamp: #6b7280;
+            --info-bg: rgba(59, 130, 246, 0.1);
+            --info-border: rgba(59, 130, 246, 0.25);
+            --info-strong: #60a5fa;
+            --info-text: #93c5fd;
+            --warn-bg: rgba(245, 158, 11, 0.1);
+            --warn-border: rgba(245, 158, 11, 0.3);
+            --warn-text: #fbbf24;
+            --badge-bg: rgba(59, 130, 246, 0.15);
+            --badge-text: #93c5fd;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             padding: 16px;
-            background: #f5f5f5;
+            padding-top: calc(16px + var(--bridge-inset-top));
+            padding-bottom: calc(16px + var(--bridge-inset-bottom));
+            padding-left: calc(16px + var(--bridge-inset-left));
+            padding-right: calc(16px + var(--bridge-inset-right));
+            background: var(--bg-primary);
+            color: var(--text-primary);
             line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .desktop-banner {
+            display: none;
+            background: var(--warn-bg);
+            border: 2px solid var(--warn-border);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--warn-text);
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--accent) 0%, #044a94 100%);
             color: white;
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
+        .header h1 { font-size: 24px; margin-bottom: 4px; }
+        .header p { font-size: 14px; opacity: 0.85; }
 
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.15s;
+            box-shadow: none;
+            padding: 0;
         }
+        .theme-toggle:active { background: rgba(255, 255, 255, 0.35); transform: none; }
 
         .status {
-            background: white;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
             padding: 12px 16px;
             border-radius: 8px;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
         }
 
         .status-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #10b981;
+            background: var(--text-muted);
             animation: pulse 2s infinite;
         }
+
+        .status-dot.ready { background: var(--success); }
+        .status-dot.error { background: var(--error); }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -62,19 +175,19 @@
         }
 
         .section {
-            background: white;
+            background: var(--bg-secondary);
             padding: 16px;
             border-radius: 12px;
             margin-bottom: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
         }
 
         .section h2 {
-            color: #1f2937;
+            color: var(--text-primary);
             font-size: 18px;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 2px solid var(--border);
         }
 
         .button-group {
@@ -85,7 +198,7 @@
         }
 
         button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--accent);
             color: white;
             border: none;
             padding: 12px 16px;
@@ -93,24 +206,17 @@
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            transition: transform 0.1s, box-shadow 0.1s;
-            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+            transition: background 0.15s, transform 0.1s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
         }
 
-        button:active {
-            transform: translateY(1px);
-            box-shadow: 0 1px 2px rgba(102, 126, 234, 0.3);
-        }
-
-        button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
+        button:hover { background: var(--accent-hover); }
+        button:active { transform: translateY(1px); }
+        button:disabled { background: var(--text-muted); cursor: not-allowed; box-shadow: none; }
 
         .console {
-            background: #1f2937;
-            color: #10b981;
+            background: var(--console-bg);
+            color: var(--console-text);
             padding: 16px;
             border-radius: 8px;
             font-family: 'Courier New', Courier, monospace;
@@ -118,64 +224,49 @@
             max-height: 300px;
             overflow-y: auto;
             line-height: 1.5;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+            border: 1px solid var(--console-border);
         }
 
         .console-entry {
             margin-bottom: 8px;
             padding: 4px 0;
-            border-bottom: 1px solid #374151;
+            border-bottom: 1px solid var(--console-border);
         }
 
-        .console-entry:last-child {
-            border-bottom: none;
-        }
-
-        .timestamp {
-            color: #6b7280;
-            margin-right: 8px;
-        }
-
-        .success {
-            color: #10b981;
-        }
-
-        .error {
-            color: #ef4444;
-        }
-
-        .info {
-            color: #3b82f6;
-        }
-
-        .warning {
-            color: #f59e0b;
-        }
+        .console-entry:last-child { border-bottom: none; }
+        .timestamp { color: var(--console-timestamp); margin-right: 8px; }
+        .success { color: var(--success); }
+        .error { color: var(--error); }
+        .info { color: var(--accent); }
+        .warning { color: var(--warning); }
 
         .clear-console {
-            background: #374151;
-            color: #9ca3af;
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
             padding: 8px 16px;
             margin-top: 8px;
             font-size: 12px;
+            box-shadow: none;
         }
+        .clear-console:hover { background: var(--bg-tertiary); }
 
         .test-section {
-            background: #fef3c7;
-            border: 2px solid #fbbf24;
+            background: var(--warn-bg);
+            border: 2px solid var(--warn-border);
             padding: 12px;
             border-radius: 8px;
             margin-top: 12px;
         }
 
         .test-section h3 {
-            color: #92400e;
+            color: var(--warn-text);
             font-size: 14px;
             margin-bottom: 8px;
         }
 
         pre {
-            background: #f3f4f6;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
             padding: 12px;
             border-radius: 6px;
             overflow-x: auto;
@@ -183,9 +274,23 @@
             margin-top: 8px;
         }
 
+        .cm-wrapper {
+            margin-top: 8px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .cm-wrapper .CodeMirror {
+            height: auto;
+            font-size: 12px;
+            line-height: 1.5;
+            background: var(--bg-tertiary);
+        }
+
         .device-info {
-            background: #f0fdf4;
-            border: 1px solid #86efac;
+            background: var(--info-bg);
+            border: 1px solid var(--info-border);
             padding: 12px;
             border-radius: 8px;
             margin-top: 12px;
@@ -198,43 +303,24 @@
             font-size: 13px;
         }
 
-        .device-info-item strong {
-            color: #166534;
-        }
+        .device-info-item strong { color: var(--info-strong); }
+        .device-info-item span { color: var(--info-text); }
 
-        .device-info-item span {
-            color: #15803d;
-        }
-
-        /* Inline code badge for compact, non-breaking tokens */
         code.badge {
-            background: #eef2ff; /* indigo-50 */
-            color: #3730a3;      /* indigo-800 */
+            background: var(--badge-bg);
+            color: var(--badge-text);
             padding: 2px 8px;
             border-radius: 9999px;
             font-size: 12px;
-            white-space: nowrap; /* avoid breaking schema token on mobile */
-        }
-        .device-info-subtext {
-            color: #6b7280; /* gray-500 */
-            font-size: 12px;
-        }
-        .flex-col {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 4px;
+            white-space: nowrap;
         }
 
-        /* Collapsible docs styling */
-        .collapsible {
-            width: 100%;
-        }
+        .collapsible { width: 100%; }
         .collapsible summary {
             list-style: none;
             cursor: pointer;
             font-weight: 600;
-            color: #1f2937;
+            color: var(--text-primary);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -242,151 +328,125 @@
         }
         .collapsible summary::-webkit-details-marker { display: none; }
         .collapsible summary:after {
-            content: '▸';
+            content: '\25B8';
             margin-left: auto;
-            color: #9ca3af;
+            color: var(--text-muted);
             transition: transform 0.15s ease-in-out;
         }
-        .collapsible[open] summary:after {
-            transform: rotate(90deg);
-        }
+        .collapsible[open] summary:after { transform: rotate(90deg); }
         .collapsible-content {
-            border-top: 2px solid #e5e7eb;
+            border-top: 2px solid var(--border);
             margin-top: 8px;
             padding-top: 12px;
         }
         .doc-list {
             list-style: disc;
-            margin: 8px 0 8px 16px; /* add space from card edge */
-            padding-left: 16px;     /* ensure bullets are not flush left */
+            margin: 8px 0 8px 16px;
+            padding-left: 16px;
+            color: var(--text-secondary);
         }
-        .doc-list li {
-            margin: 6px 0;
+        .doc-list li { margin: 6px 0; }
+
+        .insets-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .inset-card {
+            background: var(--info-bg);
+            border: 1px solid var(--info-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        .inset-card strong { color: var(--info-strong); }
+        .inset-card span { color: var(--info-text); font-family: monospace; }
+
+        @media (min-width: 600px) {
+            .button-group {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            }
+            .insets-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
         }
     </style>
 </head>
 <body>
+
+<div class="desktop-banner" id="desktopBanner">
+    Running in desktop mode -- native bridge not detected. Mock handler active for testing.
+</div>
+
 <div class="header">
-    <h1>🌉 JavaScript Bridge Demo</h1>
-    <p>Bidirectional JavaScript ↔ Native Communication</p>
+    <div>
+        <h1>JavaScript Bridge Demo</h1>
+        <p>Unified Web ↔ Native Communication (Android &amp; iOS)</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" id="themeToggle">🌙</button>
 </div>
 
 <div class="status" id="bridgeStatus">
-    <div class="status-dot"></div>
-    <span>Bridge Ready</span>
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Initializing bridge...</span>
 </div>
 
-<!-- Collapsible Documentation Card -->
+<!-- Spec Card -->
 <div class="section">
     <details class="collapsible">
-        <summary>📘 JavaScript Bridge Specification</summary>
+        <summary>Specification</summary>
         <div class="collapsible-content">
             <div class="device-info" style="display:block; margin-top:8px;">
-                <div class="device-info-item"><strong>Global:</strong> <span>window.bridge</span></div>
-                <div class="device-info-item"><strong>Schema:</strong> <span class="flex-col"><code class="badge">window.bridge.schemaVersion</code><span class="device-info-subtext">Auto‑attached to every message</span></span></div>
-                <div class="device-info-item"><strong>Platform:</strong> <span>WKWebView (iOS)</span></div>
+                <div class="device-info-item"><strong>Global:</strong> <span>window.jsbridge</span></div>
+                <div class="device-info-item"><strong>Schema:</strong> <code class="badge" id="specSchemaVersion">--</code></div>
+                <div class="device-info-item"><strong>Platform:</strong> <span id="specPlatform">--</span></div>
             </div>
 
-            <h3 style="margin-top:12px; font-size:14px; color:#1f2937;">Getting started</h3>
-            <pre><code>// Wait for the bridge to be ready (recommended at app start)
-await window.bridge.ready();
+            <h3 style="margin-top:12px; font-size:14px; color:var(--text-primary);">Quick start</h3>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.ready();
+jsbridge.setDebug(true);
 
-// Optional: Enable verbose logging from JS side
-window.bridge.setDebug(true);
-
-// Optionally listen for native → web messages
-window.bridge.on(async (message) => {
-  const { action, content } = message.data || {};
-  if (action === 'onPushNotification') {
-    // ... handle push notification ...
-  }
+jsbridge.on((msg) => {
+  const { action, content } = msg.data || {};
+  console.log(action, content);
 });
 
-window.addEventListener('bridgeReady', () => {
-  // bridge is ready; window.bridge is available
-});</code></pre>
+const info = await jsbridge.call({ data: { action: 'deviceInfo' } });</textarea></div>
 
-            <h3 style="margin-top:12px; font-size:14px; color:#1f2937;">API</h3>
+            <h3 style="margin-top:12px; font-size:14px; color:var(--text-primary);">API</h3>
             <ul class="doc-list">
-                <li>
-                    <strong>bridge.ready(): Promise&lt;void&gt;</strong> — resolves when the bridge is initialized.
-                </li>
-                <li>
-                    <strong>bridge.setDebug(enabled: boolean)</strong> — enables/disables JS-side debug logging.
-                </li>
-                <li>
-                    <strong>bridge.call(message, options?): Promise&lt;any&gt;</strong>
-                    <div style="margin-top:4px;">
-                        <em>message</em> must have the shape:
-                        <pre><code>{
-  data: {
-    action: string,          // required
-    content?: object         // optional, depends on action
-  }
-}</code></pre>
-                        <em>options</em> supports:
-                        <pre><code>{
-  timeout?: number // ms; default 30000
-}</code></pre>
-                    </div>
-                </li>
-                <li>
-                    <strong>bridge.on(handler: (message) =&gt; any)</strong> — registers a handler for native → web messages.
-                </li>
+                <li><strong>jsbridge.ready(): Promise&lt;void&gt;</strong></li>
+                <li><strong>jsbridge.call(msg, opts?): Promise&lt;any&gt;</strong></li>
+                <li><strong>jsbridge.on(handler)</strong> / <strong>jsbridge.off(handler)</strong></li>
+                <li><strong>jsbridge.setDebug(bool)</strong></li>
+                <li><strong>jsbridge.setMockHandler(fn | null)</strong></li>
+                <li><strong>jsbridge.platform</strong> — <code class="badge">'android' | 'ios' | 'desktop'</code></li>
+                <li><strong>jsbridge.schemaVersion</strong> — integer</li>
             </ul>
 
-            <h3 style="margin-top:12px; font-size:14px; color:#1f2937;">Message format (native-facing)</h3>
-            <pre><code>// Automatically constructed and sent by the bridge
-{
-  version: window.bridge.schemaVersion, // set by native; cannot be overridden
-  id: "msg_...",                        // unique per call
-  data: {
-    action: "...",                      // required
-    content: { ... }                     // optional; per-action schema
-  }
-}</code></pre>
-
-
-
-            <h3 style="margin-top:12px; font-size:14px; color:#1f2937;">Error handling & timeouts</h3>
-            <pre><code>try {
-  const info = await bridge.call({ data: { action: 'deviceInfo' } }, { timeout: 5000 });
-} catch (e) {
-  // e.message may contain 'Request timeout after ...ms' or a native error message
-}</code></pre>
-
-            <h3 style="margin-top:12px; font-size:14px; color:#1f2937;">Versioning</h3>
-            <pre><code>// Read-only schema version negotiated by native
-const v = window.bridge.schemaVersion;
-
-// The version is automatically attached to all calls by the bridge and
-// cannot be overridden from JavaScript. Use it for capability checks:
-if (v &gt;= 2) {
-  // use newer APIs
-} else {
-  // fall back
-}</code></pre>
-
-
+            <h3 style="margin-top:12px; font-size:14px; color:var(--text-primary);">Message format</h3>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">{
+  version: jsbridge.schemaVersion,
+  id: "msg_...",
+  data: { action: "...", content: { ... } }
+}</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Console Section (moved near top under spec) -->
+<!-- Console -->
 <div class="section">
-    <h2>💻 Console Output</h2>
+    <h2>Console</h2>
     <div class="console" id="console">
-        <div class="console-entry">
-            <span class="timestamp">[--:--:--]</span>
-            <span class="info">Console ready. Waiting for bridge...</span>
-        </div>
+        <div class="console-entry"><span class="info">Waiting for bridge...</span></div>
     </div>
-    <button class="clear-console" onclick="clearConsole()">Clear Console</button>
+    <button class="clear-console" onclick="clearConsole()">Clear</button>
 </div>
 
-<!-- Device Information Section -->
+<!-- Device & System -->
 <div class="section">
-    <h2>📱 Device & System</h2>
+    <h2>Device &amp; System</h2>
     <div class="button-group">
         <button onclick="getDeviceInfo()">Device Info</button>
         <button onclick="checkNetwork()">Network Status</button>
@@ -394,52 +454,87 @@ if (v &gt;= 2) {
     </div>
     <div id="deviceInfo" class="device-info" style="display: none;"></div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// deviceInfo (no content). Returns device/app info object.
-await bridge.call({ data: { action: 'deviceInfo' } });
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Device info
+const info = await jsbridge.call({ data: { action: 'deviceInfo' } });
+// → { platform, osVersion, model, appVersion }
 
-// networkState (no content). Returns { connected: boolean, type?: string }.
-await bridge.call({ data: { action: 'networkState' } });
+// Network status
+const net = await jsbridge.call({ data: { action: 'networkState' } });
+// → { connected: true, type: 'wifi' }
 
-// openSettings (no content). Opens the system settings where supported.
-await bridge.call({ data: { action: 'openSettings' } });</code></pre>
+// Open native settings
+await jsbridge.call({ data: { action: 'openSettings' } });</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- UI Actions Section -->
+<!-- Safe Area / Insets -->
 <div class="section">
-    <h2>🎨 UI Actions</h2>
+    <h2>Safe Area / Insets</h2>
+    <div class="button-group">
+        <button onclick="queryInsets()">Get Insets</button>
+    </div>
+    <div class="insets-grid" id="insetsGrid" style="display:none;">
+        <div class="inset-card"><strong>Top</strong><br><span id="insetTop">--</span></div>
+        <div class="inset-card"><strong>Right</strong><br><span id="insetRight">--</span></div>
+        <div class="inset-card"><strong>Bottom</strong><br><span id="insetBottom">--</span></div>
+        <div class="inset-card"><strong>Left</strong><br><span id="insetLeft">--</span></div>
+    </div>
+    <div class="test-section">
+        <h3>CSS Custom Properties</h3>
+        <p style="font-size: 13px; color: var(--warn-text); margin-top: 4px;">
+            Native automatically pushes <code>--bridge-inset-*</code> CSS properties whenever bars change.
+            Use <code>var(--bridge-inset-top)</code> etc. in your CSS. The <code>getInsets</code> action
+            is for on-demand JavaScript queries.
+        </p>
+    </div>
+    <details class="collapsible" style="margin-top:12px;">
+        <summary>Spec &amp; Usage</summary>
+        <div class="collapsible-content">
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="css">/* CSS: automatically updated by native */
+body {
+  padding-top: var(--bridge-inset-top, env(safe-area-inset-top, 0px));
+  padding-bottom: var(--bridge-inset-bottom, env(safe-area-inset-bottom, 0px));
+}</textarea></div>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">/* JS: query on demand */
+const insets = await jsbridge.call({ data: { action: 'getInsets' } });
+// { statusBar: { height, visible }, systemNavigation: { ... }, safeArea: { top, right, bottom, left } }</textarea></div>
+        </div>
+    </details>
+</div>
+
+<!-- UI Actions -->
+<div class="section">
+    <h2>UI Actions</h2>
     <div class="button-group">
         <button onclick="showToast()">Show Toast</button>
         <button onclick="showAlert()">Show Alert</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// showToast — content.message is required; content.duration optional ('short' | 'long')
-await bridge.call({
-  data: {
-    action: 'showToast',
-    content: { message: 'Hello 👋', duration: 'short' }
-  }
-});
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Toast
+await jsbridge.call({ data: { action: 'showToast', content: {
+  message: 'Hello!',
+  duration: 'short' // 'short' | 'long'
+}}});
 
-// showAlert — content.title and content.message are required; content.buttons optional
-await bridge.call({
-  data: {
-    action: 'showAlert',
-    content: { title: 'Title', message: 'Message', buttons: ['OK', 'Cancel'] }
-  }
-});</code></pre>
+// Alert with buttons
+const result = await jsbridge.call({ data: { action: 'showAlert', content: {
+  title: 'Confirm',
+  message: 'Are you sure?',
+  buttons: ['OK', 'Cancel']
+}}});
+// → { buttonIndex: 0 }</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Top Navigation Section -->
+<!-- Top Navigation -->
 <div class="section">
-    <h2>📱 Top Navigation</h2>
+    <h2>Top Navigation</h2>
     <div class="button-group">
         <button onclick="toggleTopNav()">Toggle Visibility</button>
         <button onclick="setTopNavTitle()">Set Title</button>
@@ -449,1138 +544,685 @@ await bridge.call({
         <button onclick="toggleProfile()">Toggle Profile</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Toggle/show/hide/update top navigation
-await bridge.call({
-  data: {
-    action: 'topNavigation',
-    content: {
-      isVisible: boolean,          // optional; omit to keep current visibility
-      title: 'Screen Title',       // optional (null to hide when logo is shown)
-      showUpArrow: false,          // optional
-      showDivider: true,           // optional
-      showLogo: false,             // optional
-      showProfileIconWidget: false // optional
-    }
-  }
-});</code></pre>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call({ data: { action: 'topNavigation', content: {
+  isVisible: true,
+  title: 'Page Title',
+  showUpArrow: false,
+  showDivider: true,
+  showLogo: false,
+  showProfileIconWidget: false
+}}});
+
+// Hide toolbar
+await jsbridge.call({ data: { action: 'topNavigation', content: {
+  isVisible: false
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Bottom Navigation Section -->
+<!-- Bottom Navigation -->
 <div class="section">
-    <h2>🗂️ Bottom Navigation</h2>
+    <h2>Bottom Navigation</h2>
     <div class="button-group">
         <button onclick="toggleBottomNav()">Toggle Visibility</button>
-        <button onclick="showBottomNav()">Show Bottom Nav</button>
-        <button onclick="hideBottomNav()">Hide Bottom Nav</button>
+        <button onclick="showBottomNav()">Show</button>
+        <button onclick="hideBottomNav()">Hide</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Show/hide bottom navigation
-await bridge.call({
-  data: { action: 'bottomNavigation', content: { isVisible: true } }
-});</code></pre>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Show tab bar
+await jsbridge.call({ data: { action: 'bottomNavigation', content: {
+  isVisible: true
+}}});
+
+// Hide tab bar
+await jsbridge.call({ data: { action: 'bottomNavigation', content: {
+  isVisible: false
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- System Bars Section -->
+<!-- System Bars -->
 <div class="section">
-    <h2>🖥️ System Bars</h2>
+    <h2>System Bars</h2>
     <div class="button-group">
         <button onclick="toggleStatusBar()">Toggle Status Bar</button>
         <button onclick="toggleSystemNav()">Toggle System Nav</button>
-        <button onclick="hideAllBars()">Hide All Bars</button>
-        <button onclick="showAllBars()">Show All Bars</button>
-    </div>
-    <div class="test-section">
-        <h3>ℹ️ Platform Support</h3>
-        <p style="font-size: 13px; color: #78350f; margin-top: 4px;">
-            System bars control is fully supported on Android. iOS has platform limitations and does not support these controls.
-        </p>
+        <button onclick="hideAllBars()">Hide All</button>
+        <button onclick="showAllBars()">Show All</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// iOS may ignore these due to platform limitations
-await bridge.call({
-  data: {
-    action: 'systemBars',
-    content: {
-      // Both keys are optional; send either or both
-      showStatusBar: true,          // optional
-      showSystemNavigation: true    // optional
-    }
-  }
-});</code></pre>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call({ data: { action: 'systemBars', content: {
+  showStatusBar: true,
+  showSystemNavigation: true
+}}});
+
+// Immersive mode
+await jsbridge.call({ data: { action: 'systemBars', content: {
+  showStatusBar: false,
+  showSystemNavigation: false
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Haptic Feedback Section -->
+<!-- Haptic -->
 <div class="section">
-    <h2>📳 Haptic Feedback</h2>
+    <h2>Haptic Feedback</h2>
     <div class="button-group">
         <button onclick="triggerHaptic()">Vibrate</button>
-        <button onclick="multipleHaptics()">Multiple Vibrates</button>
+        <button onclick="multipleHaptics()">3x Vibrate</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Simple vibration
-await bridge.call({
-  data: { action: 'haptic', content: { vibrate: true } }
-});</code></pre>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call({ data: { action: 'haptic', content: {
+  vibrate: true
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Navigation Section -->
+<!-- Navigation -->
 <div class="section">
-    <h2>🧭 Navigation</h2>
+    <h2>Navigation</h2>
     <div class="button-group">
-        <button onclick="navigateInternal()">Navigate Internal</button>
-        <button onclick="navigateExternal()">Navigate External</button>
+        <button onclick="navigateInternal()">Internal URL</button>
+        <button onclick="navigateExternal()">External URL</button>
         <button onclick="goBack()">Go Back</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Open URL internally (in-app)
-await bridge.call({
-  data: { action: 'navigation', content: { url: 'https://www.check24.de', external: false } }
-});
-
-// Open URL externally (browser)
-await bridge.call({
-  data: { action: 'navigation', content: { url: 'https://www.check24.de', external: true } }
-});
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Load URL in WebView
+await jsbridge.call({ data: { action: 'navigation', content: {
+  url: 'https://example.com',
+  external: false // true = open in browser
+}}});
 
 // Go back
-await bridge.call({
-  data: { action: 'navigation', content: { goBack: true } }
-});</code></pre>
+await jsbridge.call({ data: { action: 'navigation', content: {
+  goBack: true
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- System Actions Section -->
+<!-- System Actions -->
 <div class="section">
-    <h2>⚙️ System Actions</h2>
+    <h2>System Actions</h2>
     <div class="button-group">
-        <button onclick="copyToClipboard()">Copy Text</button>
+        <button onclick="copyToClipboard()">Copy to Clipboard</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Copy text to clipboard
-await bridge.call({
-  data: { action: 'copyToClipboard', content: { text: 'Hello' } }
-});</code></pre>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call({ data: { action: 'copyToClipboard', content: {
+  text: 'Text to copy'
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Lifecycle Events Section -->
+<!-- Lifecycle -->
 <div class="section">
-    <h2>🔄 Lifecycle Events</h2>
-    <div class="button-group">
-        <button onclick="enableLifecycle()">Enable Events</button>
-        <button onclick="disableLifecycle()">Disable Events</button>
-    </div>
-    <div class="test-section">
-        <h3>ℹ️ Lifecycle Events</h3>
-        <p style="font-size: 13px; color: #78350f; margin-top: 4px;">
-            Enable to receive lifecycle events from the native side. Currently sends focus and unfocus events based on whether the screen has focus (both Android and iOS).
-        </p>
-    </div>
+    <h2>Lifecycle Events</h2>
+    <p style="color:var(--text-secondary);font-size:14px;">Native sends <code>focused</code> / <code>defocused</code> events automatically. Current state:</p>
+    <div id="lifecycleStatus" style="margin-top:8px;padding:10px 14px;border-radius:8px;background:var(--info-bg);color:var(--success);font-weight:600;font-size:15px;display:inline-block;">focused</div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Enable/disable native → web lifecycle events (focus/unfocus)
-await bridge.call({ data: { action: 'lifecycleEvents', content: { enable: true } } });
-await bridge.call({ data: { action: 'lifecycleEvents', content: { enable: false } } });
-
-// Listen for lifecycle events from native (focused/defocused)
-window.bridge.on((message) => {
-  const { action, content } = message.data || {};
-  if (action === 'lifecycle') {
-    if (content?.event === 'focused') {
-      // handle focus gained
-    } else if (content?.event === 'defocused') {
-      // handle focus lost
-    }
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Native sends these automatically — just listen:
+jsbridge.on((msg) => {
+  if (msg.data.action === 'lifecycle') {
+    const event = msg.data.content.event;
+    // event: 'focused' | 'defocused'
+    console.log('App', event);
   }
-});</code></pre>
+});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Refresh Events Section -->
+<!-- Refresh / Push -->
 <div class="section">
-    <h2>🔔 Refresh Events</h2>
-    <div class="button-group">
-        <button onclick="startListeningRefresh()">Start Listening</button>
-        <button onclick="stopListeningRefresh()">Stop Listening</button>
+    <h2>Refresh / Push Events</h2>
+    <p style="color:var(--text-secondary);font-size:14px;">Native sends push events automatically. Latest:</p>
+    <div id="pushStatus" style="margin-top:8px;padding:10px 14px;border-radius:8px;background:var(--info-bg);color:var(--accent);font-weight:600;font-size:15px;display:inline-block;">waiting...</div>
+    <div class="button-group" style="margin-top:12px;">
         <button onclick="triggerRefresh()">Trigger Refresh</button>
     </div>
-    <div class="test-section">
-        <h3>ℹ️ Push Notification Events</h3>
-        <p style="font-size: 13px; color: #78350f; margin-top: 4px;">
-            Native listens to the messaging service and pushes events to web after receiving push notifications.
-            Start listening to log these events in the console.
-        </p>
-    </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Listen for push notifications sent from native
-window.bridge.on((message) => {
-  const { action, content } = message.data || {};
-  if (action === 'onPushNotification') {
-    // e.g. use the URL provided by native
-    const url = content?.url;
-    // ... handle push event ...
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Listen for push events from native:
+jsbridge.on((msg) => {
+  if (msg.data.action === 'onPushNotification') {
+    const { url, message } = msg.data.content;
+    console.log('Push:', message, url);
   }
 });
 
-// Trigger a refresh command from web (optional)
-await bridge.call({ data: { action: 'refresh', content: { command: 'refresh' } } });</code></pre>
+// Tell native to refresh (web → native):
+await jsbridge.call({ data: { action: 'refresh', content: {
+  command: 'refresh'
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Storage Section -->
+<!-- Secure Storage -->
 <div class="section">
-    <h2>💾 Secure Storage</h2>
+    <h2>Secure Storage</h2>
     <div class="button-group">
-        <button onclick="saveData()">Save Data</button>
-        <button onclick="loadData()">Load Data</button>
-        <button onclick="removeData()">Remove Data</button>
+        <button onclick="saveData()">Save</button>
+        <button onclick="loadData()">Load</button>
+        <button onclick="removeData()">Remove</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Save
-await bridge.call({
-  data: { action: 'saveSecureData', content: { key: 'k', value: 'v' } }
-});
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Save (Android: EncryptedSharedPreferences, iOS: Keychain)
+await jsbridge.call({ data: { action: 'saveSecureData', content: {
+  key: 'auth_token',
+  value: 'eyJhbGci...'
+}}});
 
-// Load → returns { value?: string }
-const result = await bridge.call({
-  data: { action: 'loadSecureData', content: { key: 'k' } }
-});
+// Load
+const result = await jsbridge.call({ data: { action: 'loadSecureData', content: {
+  key: 'auth_token'
+}}});
+// → { value: 'eyJhbGci...' }
 
 // Remove
-await bridge.call({
-  data: { action: 'removeSecureData', content: { key: 'k' } }
-});</code></pre>
+await jsbridge.call({ data: { action: 'removeSecureData', content: {
+  key: 'auth_token'
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Analytics Section -->
+<!-- Analytics -->
 <div class="section">
-    <h2>📊 Analytics (Fire & Forget)</h2>
+    <h2>Analytics (Fire &amp; Forget)</h2>
     <div class="button-group">
         <button onclick="trackEvent()">Track Event</button>
         <button onclick="trackScreen()">Track Screen</button>
     </div>
     <details class="collapsible" style="margin-top:12px;">
-        <summary>📘 Spec & Usage</summary>
+        <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-                <pre><code>// Track event — no response expected
-bridge.call({
-  data: {
-    action: 'trackEvent',
-    content: { event: 'button_click', params: { screen: 'bridge_demo' } }
-  }
-});
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Fire & forget — no await needed
+jsbridge.call({ data: { action: 'trackEvent', content: {
+  event: 'button_click',
+  params: { screen: 'checkout', item: 'submit' }
+}}});
 
-// Track screen — no response expected
-bridge.call({
-  data: {
-    action: 'trackScreen',
-    content: { screenName: 'Bridge Demo', screenClass: 'BridgeDemoScreen' }
-  }
-});</code></pre>
+jsbridge.call({ data: { action: 'trackScreen', content: {
+  screenName: 'Checkout',
+  screenClass: 'CheckoutScreen'
+}}});</textarea></div>
         </div>
     </details>
 </div>
 
-<!-- Bidirectional Communication Section -->
+<!-- Schema Versioning -->
 <div class="section">
-    <h2>🔄 Bidirectional Communication</h2>
-    <div class="button-group">
-        <button onclick="testNativeToWeb()">Test Native→Web</button>
-        <button onclick="testWebToNative()">Test Web→Native</button>
-    </div>
-    <div class="test-section">
-        <h3>ℹ️ About Bidirectional Communication</h3>
-        <p style="font-size: 13px; color: #78350f; margin-top: 4px;">
-            The bridge supports both directions: Web can call Native (like all buttons above),
-            and Native can send messages to Web (event notifications, data updates).
-        </p>
-    </div>
-</div>
-
-<!-- Schema Versioning Section -->
-<div class="section">
-    <h2>🔢 Schema Versioning</h2>
+    <h2>Schema Versioning</h2>
     <div class="button-group">
         <button onclick="checkSchemaVersion()">Check Schema</button>
         <button onclick="testVersionCompatibility()">Test Compatibility</button>
-        <button onclick="testFutureVersion()">Test Future Version</button>
     </div>
-    <div class="test-section">
-        <h3>ℹ️ About Schema Versioning</h3>
-        <p style="font-size: 13px; color: #78350f; margin-top: 4px;">
-            Schema version is a simple integer (1, 2, 3...) that increments on breaking changes.
-            Web can check the version and use appropriate APIs. If web sends a higher version than native supports, native silently ignores the call.
-        </p>
-    </div>
+    <details class="collapsible" style="margin-top:12px;">
+        <summary>Spec &amp; Usage</summary>
+        <div class="collapsible-content">
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Check current schema version
+console.log(jsbridge.schemaVersion); // → 1
+
+// Version is sent automatically in every call:
+// { version: 1, id: "msg_...", data: { action: "..." } }
+//
+// Native silently ignores messages with version > its own,
+// so newer web code degrades gracefully on older apps.</textarea></div>
+        </div>
+    </details>
 </div>
 
-<!-- Test Suite Section -->
+<!-- Tests -->
 <div class="section">
-    <h2>🧪 Automated Tests</h2>
+    <h2>Automated Tests</h2>
     <div class="button-group">
         <button onclick="runAllTests()">Run All Tests</button>
-        <button onclick="testFireAndForget()">Test Fire & Forget</button>
+        <button onclick="testFireAndForget()">Test Fire &amp; Forget</button>
         <button onclick="testErrorHandling()">Test Errors</button>
     </div>
 </div>
 
-<!-- Specification Section (removed; content distributed within sections) -->
-
-
 <script>
-    // Console management
-    const consoleEl = document.getElementById('console');
-    const maxConsoleEntries = 50;
+    // -- theme ------------------------------------------------------------
+    function cmTheme(theme) { return theme === 'dark' ? 'material-darker' : 'neat'; }
 
-    function log(message, type = 'info') {
-        const timestamp = new Date().toLocaleTimeString();
-        const entry = document.createElement('div');
-        entry.className = `console-entry ${type}`;
-        entry.innerHTML = `<span class="timestamp">[${timestamp}]</span><span>${message}</span>`;
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.getElementById('themeToggle').textContent = theme === 'dark' ? '🌙' : '☀️';
+        var t = cmTheme(theme);
+        document.querySelectorAll('.CodeMirror').forEach(function (el) {
+            if (el.CodeMirror) el.CodeMirror.setOption('theme', t);
+        });
+    }
 
+    function toggleTheme() {
+        var current = document.documentElement.getAttribute('data-theme');
+        setTheme(current === 'dark' ? 'light' : 'dark');
+    }
+
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        setTheme('light');
+    }
+
+    // -- configurable bridge name ----------------------------------------
+    var BRIDGE = 'jsbridge';
+
+    // -- console ---------------------------------------------------------
+    var consoleEl = document.getElementById('console');
+
+    function log(message, type) {
+        type = type || 'info';
+        var ts = new Date().toLocaleTimeString();
+        var entry = document.createElement('div');
+        entry.className = 'console-entry ' + type;
+        entry.innerHTML = '<span class="timestamp">[' + ts + ']</span><span>' + message + '</span>';
         consoleEl.insertBefore(entry, consoleEl.firstChild);
-
-        // Limit console entries
-        while (consoleEl.children.length > maxConsoleEntries) {
-            consoleEl.removeChild(consoleEl.lastChild);
-        }
+        while (consoleEl.children.length > 50) consoleEl.removeChild(consoleEl.lastChild);
     }
 
     function clearConsole() {
         consoleEl.innerHTML = '<div class="console-entry"><span class="info">Console cleared</span></div>';
     }
 
-    // Initialize bridge
-    let bridgeReady = false;
+    // -- bridge init -----------------------------------------------------
+    var bridge;
+    var bridgeReady = false;
+
+    function initDesktopMock() {
+        document.getElementById('desktopBanner').style.display = 'block';
+        bridge = window[BRIDGE];
+        if (bridge && bridge.setMockHandler) {
+            bridge.setMockHandler(function (msg) {
+                var action = msg.data && msg.data.action;
+                log('Mock: ' + action, 'warning');
+                if (action === 'deviceInfo') return { platform: 'desktop', osVersion: navigator.platform, model: 'Browser', appVersion: '1.0.0' };
+                if (action === 'networkState') return { connected: navigator.onLine, type: 'wifi' };
+                if (action === 'getInsets') return { statusBar: { height: 0, visible: false }, systemNavigation: { height: 0, visible: false }, keyboard: { height: 0, visible: false }, safeArea: { top: 0, right: 0, bottom: 0, left: 0 } };
+                return {};
+            });
+        }
+    }
 
     async function initBridge() {
+        bridge = window[BRIDGE];
+        if (!bridge) { log('Bridge object not found on window.' + BRIDGE, 'error'); return; }
+
         try {
-            await window.bridge.ready();
+            if (bridge.platform === 'desktop') initDesktopMock();
+
+            await bridge.ready();
             bridgeReady = true;
-            log('✅ Bridge initialized successfully', 'success');
-            log('🔢 Schema version: ' + window.bridge.schemaVersion, 'info');
 
-            // Set up message listener
-            window.bridge.on(handleNativeMessage);
-            log('📨 Listening for native messages...', 'info');
+            document.getElementById('statusDot').className = 'status-dot ready';
+            document.getElementById('statusText').textContent = 'Bridge Ready (v' + bridge.schemaVersion + ', ' + bridge.platform + ')';
+            document.getElementById('specSchemaVersion').textContent = 'v' + bridge.schemaVersion;
+            document.getElementById('specPlatform').textContent = bridge.platform;
 
-            document.getElementById('bridgeStatus').innerHTML =
-                '<div class="status-dot"></div><span>Bridge Ready (Schema v' + window.bridge.schemaVersion + ')</span>';
+            log('Bridge initialized (v' + bridge.schemaVersion + ', ' + bridge.platform + ')', 'success');
+
+            bridge.on(handleNativeMessage);
+            log('Listening for native messages', 'info');
         } catch (e) {
-            log('❌ Bridge initialization failed: ' + e.message, 'error');
-            document.getElementById('bridgeStatus').innerHTML =
-                '<div class="status-dot" style="background: #ef4444;"></div><span>Bridge Error</span>';
+            log('Bridge init failed: ' + e.message, 'error');
+            document.getElementById('statusDot').className = 'status-dot error';
+            document.getElementById('statusText').textContent = 'Bridge Error';
         }
     }
 
-    // Handle messages from native
-    let isListeningToRefresh = false;
+    // -- native messages -------------------------------------------------
+    function handleNativeMessage(message) {
+        var data = message.data || {};
+        var action = data.action;
+        var content = data.content;
 
-    async function handleNativeMessage(message) {
-        const { action, content } = message.data || {};
+        if (action === 'themeChanged') {
+            var theme = (content && content.theme) || 'dark';
+            setTheme(theme);
+            log('Theme: ' + theme, 'info');
+            return;
+        }
 
-        // Handle push notifications - only log if listening
         if (action === 'onPushNotification') {
-            if (isListeningToRefresh) {
-                log('🔔 Push Notification: ' + (content?.message || 'No message'), 'success');
+            var msg = (content && content.message) || 'no message';
+            log('Push: ' + msg, 'success');
+            var el = document.getElementById('pushStatus');
+            if (el) { el.textContent = msg; el.style.background = 'var(--info-bg)'; el.style.color = 'var(--success)'; }
+            return;
+        }
+
+        if (action === 'lifecycle') {
+            var event = (content && content.event) || 'unknown';
+            log('Lifecycle: ' + event, 'info');
+            var el = document.getElementById('lifecycleStatus');
+            if (el) {
+                el.textContent = event;
+                el.style.background = 'var(--info-bg)';
+                el.style.color = event === 'focused' ? 'var(--success)' : 'var(--error)';
             }
-            return { status: 'received', handled: true };
+            return;
         }
 
-        // Log other messages from native
-        log('📨 Message from native: ' + JSON.stringify(message), 'info');
-
-        if (action === 'ping') {
-            log('🏓 Received ping, sending pong...', 'info');
-            return { pong: true, timestamp: Date.now() };
-        }
-
-        if (action === 'notification') {
-            log('🔔 Notification: ' + (content?.message || 'No message'), 'info');
-        }
-
-        return { status: 'received', handled: true };
+        log('Native message: ' + JSON.stringify(message), 'info');
     }
 
-    // Device Information
+    // -- actions ---------------------------------------------------------
+    async function call(action, content) {
+        var msg = { data: { action: action } };
+        if (content) msg.data.content = content;
+        return bridge.call(msg);
+    }
+
     async function getDeviceInfo() {
         try {
-            log('📱 Requesting device info...', 'info');
-            const info = await window.bridge.call({
-                data: { action: 'deviceInfo' }
-            });
-
-            log('✅ Device info received', 'success');
-
-            const deviceInfoEl = document.getElementById('deviceInfo');
-            deviceInfoEl.style.display = 'block';
-            deviceInfoEl.innerHTML = `
-                <div class="device-info-item"><strong>Platform:</strong> <span>${info.platform || 'Unknown'}</span></div>
-                <div class="device-info-item"><strong>OS Version:</strong> <span>${info.osVersion || 'Unknown'}</span></div>
-                <div class="device-info-item"><strong>SDK Version:</strong> <span>${info.sdkVersion || 'Unknown'}</span></div>
-                <div class="device-info-item"><strong>Manufacturer:</strong> <span>${info.manufacturer || 'Unknown'}</span></div>
-                <div class="device-info-item"><strong>Model:</strong> <span>${info.model || 'Unknown'}</span></div>
-                <div class="device-info-item"><strong>App Version:</strong> <span>${info.appVersion || 'Unknown'}</span></div>
-            `;
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+            log('Requesting device info...', 'info');
+            var info = await call('deviceInfo');
+            log('Device info received', 'success');
+            var el = document.getElementById('deviceInfo');
+            el.style.display = 'block';
+            el.innerHTML =
+                '<div class="device-info-item"><strong>Platform:</strong> <span>' + (info.platform || '?') + '</span></div>' +
+                '<div class="device-info-item"><strong>OS Version:</strong> <span>' + (info.osVersion || '?') + '</span></div>' +
+                '<div class="device-info-item"><strong>Model:</strong> <span>' + (info.model || '?') + '</span></div>' +
+                '<div class="device-info-item"><strong>App Version:</strong> <span>' + (info.appVersion || '?') + '</span></div>';
+        } catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function checkNetwork() {
         try {
-            log('🌐 Checking network status...', 'info');
-            const status = await window.bridge.call({
-                data: { action: 'networkState' }
-            });
-
-            const emoji = status.connected ? '✅' : '❌';
-            log(`${emoji} Network: ${status.connected ? 'Connected' : 'Disconnected'} (${status.type || 'unknown'})`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+            log('Checking network...', 'info');
+            var s = await call('networkState');
+            log('Network: ' + (s.connected ? 'Connected' : 'Disconnected') + ' (' + (s.type || '?') + ')', 'success');
+        } catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function openSettings() {
-        try {
-            log('⚙️ Opening settings...', 'info');
-            await window.bridge.call({
-                data: { action: 'openSettings' }
-            });
-            log('✅ Settings opened', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { log('Opening settings...', 'info'); await call('openSettings'); log('Settings opened', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // UI Actions
-    async function showToast() {
+    // -- safe area / insets
+    async function queryInsets() {
         try {
-            log('🍞 Showing toast...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'showToast',
-                    content: {
-                        message: 'Hello from WebView! 👋',
-                        duration: 'short'
-                    }
-                }
-            });
-            log('✅ Toast shown', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+            log('Querying insets...', 'info');
+            var r = await call('getInsets');
+            log('Insets received', 'success');
+            document.getElementById('insetsGrid').style.display = 'grid';
+            document.getElementById('insetTop').textContent = (r.safeArea && r.safeArea.top || 0) + 'px';
+            document.getElementById('insetRight').textContent = (r.safeArea && r.safeArea.right || 0) + 'px';
+            document.getElementById('insetBottom').textContent = (r.safeArea && r.safeArea.bottom || 0) + 'px';
+            document.getElementById('insetLeft').textContent = (r.safeArea && r.safeArea.left || 0) + 'px';
+        } catch (e) { log('Error: ' + e.message, 'error'); }
+    }
+
+    // -- UI actions
+    async function showToast() {
+        try { log('Showing toast...', 'info'); await call('showToast', { message: 'Hello from WebView!', duration: 'short' }); log('Toast shown', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function showAlert() {
-        try {
-            log('🚨 Showing alert dialog...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'showAlert',
-                    content: {
-                        title: 'Bridge Demo',
-                        message: 'This is a native Android alert dialog triggered from JavaScript!',
-                        buttons: ['OK', 'Cancel']
-                    }
-                }
-            });
-            log('✅ Alert shown', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { log('Showing alert...', 'info'); await call('showAlert', { title: 'Bridge Demo', message: 'Native alert triggered from JavaScript!', buttons: ['OK', 'Cancel'] }); log('Alert shown', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // Top Navigation Control
-    let topNavVisible = true;
-    let upArrowVisible = false;
-    let dividerVisible = true;
-    let logoVisible = false;
-    let profileVisible = false;
+    // -- top navigation
+    var topNavVisible = true, upArrowVisible = false, dividerVisible = true, logoVisible = false, profileVisible = false;
+
+    function topNavContent(overrides) {
+        var c = { isVisible: topNavVisible, title: 'Bridge Demo', showUpArrow: upArrowVisible, showDivider: dividerVisible, showLogo: logoVisible, showProfileIconWidget: profileVisible };
+        if (overrides) for (var k in overrides) c[k] = overrides[k];
+        return c;
+    }
 
     async function toggleTopNav() {
-        try {
-            topNavVisible = !topNavVisible;
-            log(`📱 ${topNavVisible ? 'Showing' : 'Hiding'} top navigation...`, 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'topNavigation',
-                    content: {
-                        isVisible: topNavVisible,
-                        title: 'Bridge Demo',
-                        showUpArrow: upArrowVisible,
-                        showDivider: dividerVisible,
-                        showLogo: logoVisible,
-                        showProfileIconWidget: profileVisible
-                    }
-                }
-            });
-            log(`✅ Top navigation ${topNavVisible ? 'shown' : 'hidden'}`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        topNavVisible = !topNavVisible;
+        try { await call('topNavigation', topNavContent()); log('Top nav ' + (topNavVisible ? 'shown' : 'hidden'), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function setTopNavTitle() {
-        try {
-            const title = 'Bridge Demo ' + new Date().toLocaleTimeString();
-            log('📝 Setting top navigation title...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'topNavigation',
-                    content: {
-                        isVisible: true,
-                        title: title,
-                        showUpArrow: upArrowVisible,
-                        showDivider: dividerVisible,
-                        showLogo: logoVisible,
-                        showProfileIconWidget: profileVisible
-                    }
-                }
-            });
-            log('✅ Title set: ' + title, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        var t = 'Bridge ' + new Date().toLocaleTimeString();
+        try { await call('topNavigation', topNavContent({ isVisible: true, title: t })); log('Title: ' + t, 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function toggleUpArrow() {
-        try {
-            upArrowVisible = !upArrowVisible;
-            log(`🔙 ${upArrowVisible ? 'Showing' : 'Hiding'} up arrow...`, 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'topNavigation',
-                    content: {
-                        isVisible: topNavVisible,
-                        title: 'Bridge Demo',
-                        showUpArrow: upArrowVisible,
-                        showDivider: dividerVisible,
-                        showLogo: logoVisible,
-                        showProfileIconWidget: profileVisible
-                    }
-                }
-            });
-            log(`✅ Up arrow ${upArrowVisible ? 'shown' : 'hidden'}`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        upArrowVisible = !upArrowVisible;
+        try { await call('topNavigation', topNavContent()); log('Back arrow ' + (upArrowVisible ? 'shown' : 'hidden'), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function toggleDivider() {
-        try {
-            dividerVisible = !dividerVisible;
-            log(`➖ ${dividerVisible ? 'Showing' : 'Hiding'} divider...`, 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'topNavigation',
-                    content: {
-                        isVisible: topNavVisible,
-                        title: 'Bridge Demo',
-                        showUpArrow: upArrowVisible,
-                        showDivider: dividerVisible,
-                        showLogo: logoVisible,
-                        showProfileIconWidget: profileVisible
-                    }
-                }
-            });
-            log(`✅ Divider ${dividerVisible ? 'shown' : 'hidden'}`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        dividerVisible = !dividerVisible;
+        try { await call('topNavigation', topNavContent()); log('Divider ' + (dividerVisible ? 'shown' : 'hidden'), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function toggleLogo() {
-        try {
-            logoVisible = !logoVisible;
-            log(`🏷️ ${logoVisible ? 'Showing' : 'Hiding'} logo...`, 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'topNavigation',
-                    content: {
-                        isVisible: topNavVisible,
-                        title: logoVisible ? null : 'Bridge Demo',
-                        showUpArrow: upArrowVisible,
-                        showDivider: dividerVisible,
-                        showLogo: logoVisible,
-                        showProfileIconWidget: profileVisible
-                    }
-                }
-            });
-            log(`✅ Logo ${logoVisible ? 'shown' : 'hidden'}`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        logoVisible = !logoVisible;
+        try { await call('topNavigation', topNavContent({ title: logoVisible ? null : 'Bridge Demo' })); log('Logo ' + (logoVisible ? 'shown' : 'hidden'), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function toggleProfile() {
-        try {
-            profileVisible = !profileVisible;
-            log(`👤 ${profileVisible ? 'Showing' : 'Hiding'} profile icon...`, 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'topNavigation',
-                    content: {
-                        isVisible: topNavVisible,
-                        title: 'Bridge Demo',
-                        showUpArrow: upArrowVisible,
-                        showDivider: dividerVisible,
-                        showLogo: logoVisible,
-                        showProfileIconWidget: profileVisible
-                    }
-                }
-            });
-            log(`✅ Profile icon ${profileVisible ? 'shown' : 'hidden'}`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        profileVisible = !profileVisible;
+        try { await call('topNavigation', topNavContent()); log('Profile ' + (profileVisible ? 'shown' : 'hidden'), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // Bottom Navigation Control
-    // Initialize to false since screen starts with bottom nav disabled
-    let bottomNavVisible = true;
+    // -- bottom navigation
+    var bottomNavVisible = true;
 
     async function toggleBottomNav() {
-        try {
-            bottomNavVisible = !bottomNavVisible;
-            log(`🗂️ ${bottomNavVisible ? 'Showing' : 'Hiding'} bottom navigation...`, 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'bottomNavigation',
-                    content: { isVisible: bottomNavVisible }
-                }
-            });
-            log(`✅ Bottom navigation ${bottomNavVisible ? 'shown' : 'hidden'}`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        bottomNavVisible = !bottomNavVisible;
+        try { await call('bottomNavigation', { isVisible: bottomNavVisible }); log('Bottom nav ' + (bottomNavVisible ? 'shown' : 'hidden'), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function showBottomNav() {
-        try {
-            bottomNavVisible = true;
-            log('🗂️ Showing bottom navigation...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'bottomNavigation',
-                    content: { isVisible: true }
-                }
-            });
-            log('✅ Bottom navigation shown', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        bottomNavVisible = true;
+        try { await call('bottomNavigation', { isVisible: true }); log('Bottom nav shown', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function hideBottomNav() {
-        try {
-            bottomNavVisible = false;
-            log('🗂️ Hiding bottom navigation...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'bottomNavigation',
-                    content: { isVisible: false }
-                }
-            });
-            log('✅ Bottom navigation hidden', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        bottomNavVisible = false;
+        try { await call('bottomNavigation', { isVisible: false }); log('Bottom nav hidden', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // System Bars Control
-    let statusBarVisible = true;
-    let systemNavVisible = true;
+    // -- system bars
+    var statusBarVisible = true, systemNavVisible = true;
 
     async function toggleStatusBar() {
-        try {
-            statusBarVisible = !statusBarVisible;
-            log(`📱 ${statusBarVisible ? 'Showing' : 'Hiding'} status bar...`, 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'systemBars',
-                    content: {
-                        showStatusBar: statusBarVisible,
-                        showSystemNavigation: systemNavVisible
-                    }
-                }
-            });
-            log(`✅ Status bar ${statusBarVisible ? 'shown' : 'hidden'}`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        statusBarVisible = !statusBarVisible;
+        try { await call('systemBars', { showStatusBar: statusBarVisible, showSystemNavigation: systemNavVisible }); log('Status bar ' + (statusBarVisible ? 'shown' : 'hidden'), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function toggleSystemNav() {
-        try {
-            systemNavVisible = !systemNavVisible;
-            log(`🖥️ ${systemNavVisible ? 'Showing' : 'Hiding'} system navigation...`, 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'systemBars',
-                    content: {
-                        showStatusBar: statusBarVisible,
-                        showSystemNavigation: systemNavVisible
-                    }
-                }
-            });
-            log(`✅ System navigation ${systemNavVisible ? 'shown' : 'hidden'}`, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        systemNavVisible = !systemNavVisible;
+        try { await call('systemBars', { showStatusBar: statusBarVisible, showSystemNavigation: systemNavVisible }); log('System nav ' + (systemNavVisible ? 'shown' : 'hidden'), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function hideAllBars() {
-        try {
-            statusBarVisible = false;
-            systemNavVisible = false;
-            log('🖥️ Hiding all system bars...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'systemBars',
-                    content: {
-                        showStatusBar: false,
-                        showSystemNavigation: false
-                    }
-                }
-            });
-            log('✅ All system bars hidden', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        statusBarVisible = false; systemNavVisible = false;
+        try { await call('systemBars', { showStatusBar: false, showSystemNavigation: false }); log('All bars hidden', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function showAllBars() {
-        try {
-            statusBarVisible = true;
-            systemNavVisible = true;
-            log('🖥️ Showing all system bars...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'systemBars',
-                    content: {
-                        showStatusBar: true,
-                        showSystemNavigation: true
-                    }
-                }
-            });
-            log('✅ All system bars shown', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        statusBarVisible = true; systemNavVisible = true;
+        try { await call('systemBars', { showStatusBar: true, showSystemNavigation: true }); log('All bars shown', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // Haptic Feedback
+    // -- haptic
     async function triggerHaptic() {
-        try {
-            log('📳 Triggering haptic feedback...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'haptic',
-                    content: { vibrate: true }
-                }
-            });
-            log('✅ Haptic feedback triggered', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { await call('haptic', { vibrate: true }); log('Haptic triggered', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function multipleHaptics() {
         try {
-            log('📳 Triggering multiple haptics...', 'info');
-            for (let i = 0; i < 3; i++) {
-                await window.bridge.call({
-                    data: {
-                        action: 'haptic',
-                        content: { vibrate: true }
-                    }
-                });
-                await new Promise(resolve => setTimeout(resolve, 200));
+            for (var i = 0; i < 3; i++) {
+                await call('haptic', { vibrate: true });
+                await new Promise(function (r) { setTimeout(r, 200); });
             }
-            log('✅ Multiple haptics triggered', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+            log('3x haptic done', 'success');
+        } catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // Navigation Control
+    // -- navigation
     async function navigateInternal() {
-        try {
-            log('🧭 Navigating internally...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'navigation',
-                    content: {
-                        url: 'https://www.check24.de',
-                        external: false
-                    }
-                }
-            });
-            log('✅ Internal navigation triggered', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { await call('navigation', { url: 'https://example.com', external: false }); log('Internal nav triggered', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function navigateExternal() {
-        try {
-            log('🌐 Opening external browser...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'navigation',
-                    content: {
-                        url: 'https://www.check24.de',
-                        external: true
-                    }
-                }
-            });
-            log('✅ External browser opened', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { await call('navigation', { url: 'https://example.com', external: true }); log('External nav triggered', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function goBack() {
-        try {
-            log('⬅️ Going back...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'navigation',
-                    content: { goBack: true }
-                }
-            });
-            log('✅ Back navigation triggered', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { await call('navigation', { goBack: true }); log('Back triggered', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // Lifecycle Events
-    async function enableLifecycle() {
-        try {
-            log('🔄 Enabling lifecycle events...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'lifecycleEvents',
-                    content: { enable: true }
-                }
-            });
-            log('✅ Lifecycle events enabled (watch console for events)', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
-    }
-
-    async function disableLifecycle() {
-        try {
-            log('🔄 Disabling lifecycle events...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'lifecycleEvents',
-                    content: { enable: false }
-                }
-            });
-            log('✅ Lifecycle events disabled', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
-    }
-
-    // Refresh Events
-    function startListeningRefresh() {
-        isListeningToRefresh = true;
-        log('🔔 Started listening to push notification events...', 'success');
-        log('ℹ️ Native sends events every 5 seconds. Watch for green messages.', 'info');
-    }
-
-    function stopListeningRefresh() {
-        isListeningToRefresh = false;
-        log('🔕 Stopped listening to push notification events', 'warning');
-    }
-
-    async function triggerRefresh() {
-        try {
-            log('🔄 Triggering refresh with refresh command...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'refresh',
-                    content: { command: 'refresh' }
-                }
-            });
-            log('✅ Refresh command sent successfully', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
-    }
-
-    // System Actions
+    // -- clipboard
     async function copyToClipboard() {
-        try {
-            log('📋 Copying to clipboard...', 'info');
-            const text = 'JavaScript Bridge - ' + new Date().toISOString();
-            await window.bridge.call({
-                data: {
-                    action: 'copyToClipboard',
-                    content: { text }
-                }
-            });
-            log('✅ Copied: ' + text, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        var text = 'Bridge Demo - ' + new Date().toISOString();
+        try { await call('copyToClipboard', { text: text }); log('Copied: ' + text, 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // Storage
+    // -- refresh
+    async function triggerRefresh() {
+        try { await call('refresh', { command: 'refresh' }); log('Refresh sent', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
+    }
+
+    // -- storage
     async function saveData() {
-        try {
-            log('💾 Saving secure data...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'saveSecureData',
-                    content: {
-                        key: 'demo_key',
-                        value: 'Bridge Demo Data - ' + new Date().toISOString()
-                    }
-                }
-            });
-            log('✅ Data saved', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { await call('saveSecureData', { key: 'demo_key', value: 'Demo ' + new Date().toISOString() }); log('Data saved', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function loadData() {
-        try {
-            log('📂 Loading secure data...', 'info');
-            const result = await window.bridge.call({
-                data: {
-                    action: 'loadSecureData',
-                    content: { key: 'demo_key' }
-                }
-            });
-            log('✅ Data loaded: ' + JSON.stringify(result), 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { var r = await call('loadSecureData', { key: 'demo_key' }); log('Loaded: ' + JSON.stringify(r), 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     async function removeData() {
-        try {
-            log('🗑️ Removing secure data...', 'info');
-            await window.bridge.call({
-                data: {
-                    action: 'removeSecureData',
-                    content: { key: 'demo_key' }
-                }
-            });
-            log('✅ Data removed', 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
+        try { await call('removeSecureData', { key: 'demo_key' }); log('Data removed', 'success'); }
+        catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
-    // Analytics (Fire and Forget)
+    // -- analytics
     function trackEvent() {
-        log('📊 Tracking event (fire & forget)...', 'info');
-        window.bridge.call({
-            data: {
-                action: 'trackEvent',
-                content: {
-                    event: 'button_click',
-                    params: {
-                        button_name: 'track_event',
-                        screen: 'bridge_demo',
-                        timestamp: new Date().toISOString()
-                    }
-                }
-            }
-        });
-        log('✅ Event tracked (no response expected)', 'success');
+        call('trackEvent', { event: 'button_click', params: { screen: 'bridge_demo' } });
+        log('Event tracked (fire & forget)', 'success');
     }
 
     function trackScreen() {
-        log('📊 Tracking screen view (fire & forget)...', 'info');
-        window.bridge.call({
-            data: {
-                action: 'trackScreen',
-                content: {
-                    screenName: 'Bridge Demo',
-                    screenClass: 'BridgeDemoScreen'
-                }
-            }
-        });
-        log('✅ Screen tracked (no response expected)', 'success');
+        call('trackScreen', { screenName: 'Bridge Demo', screenClass: 'BridgeDemoScreen' });
+        log('Screen tracked (fire & forget)', 'success');
     }
 
-    // Bidirectional Communication Tests
-    function testNativeToWeb() {
-        log('🔄 Requesting native to send test message...', 'info');
-        log('⚠️ This requires native code to call sendToWeb()', 'warning');
-        log('Example: javaScriptBridge?.sendToWeb("notification", mapOf("message" to "Test from native"))', 'info');
-    }
-
-    async function testWebToNative() {
-        try {
-            log('🔄 Testing Web→Native communication...', 'info');
-            const result = await window.bridge.call({
-                data: {
-                    action: 'deviceInfo'
-                }
-            }, { timeout: 5000 });
-            log('✅ Web→Native test successful: ' + result.platform, 'success');
-        } catch (e) {
-            log('❌ Error: ' + e.message, 'error');
-        }
-    }
-
-    // Test Suite
-    async function runAllTests() {
-        log('🧪 Running all tests...', 'info');
-
-        const tests = [
-            { name: 'Device Info', fn: getDeviceInfo },
-            { name: 'Network Status', fn: checkNetwork },
-            { name: 'Toast', fn: showToast },
-            { name: 'Clipboard', fn: copyToClipboard },
-            { name: 'Haptic', fn: triggerHaptic },
-            { name: 'Toggle Top Nav', fn: toggleTopNav },
-            { name: 'Toggle Bottom Nav', fn: toggleBottomNav },
-        ];
-
-        let passed = 0;
-        let failed = 0;
-
-        for (const test of tests) {
-            try {
-                await test.fn();
-                passed++;
-                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between tests
-            } catch (e) {
-                failed++;
-                log(`❌ Test "${test.name}" failed: ${e.message}`, 'error');
-            }
-        }
-
-        log(`📊 Test Results: ${passed} passed, ${failed} failed`, passed === tests.length ? 'success' : 'warning');
-    }
-
-    function testFireAndForget() {
-        log('🧪 Testing fire-and-forget pattern...', 'info');
-        trackEvent();
-        trackScreen();
-        log('✅ Fire-and-forget test complete (no responses expected)', 'success');
-    }
-
-    async function testErrorHandling() {
-        log('🧪 Testing error handling...', 'info');
-
-        try {
-            await window.bridge.call({
-                data: { action: 'nonExistentAction' }
-            });
-        } catch (e) {
-            log('✅ Error handling works: ' + e.message, 'success');
-            return;
-        }
-
-        log('❌ Error handling failed - no error was thrown', 'error');
-    }
-
-    // Schema Versioning Tests
+    // -- schema versioning
     function checkSchemaVersion() {
-        log('🔢 Checking schema version...', 'info');
-        log('🔢 Schema version: ' + window.bridge.schemaVersion, 'success');
-        log('ℹ️ All messages automatically include version ' + window.bridge.schemaVersion, 'info');
+        log('Schema version: ' + bridge.schemaVersion, 'success');
     }
 
     async function testVersionCompatibility() {
-        log('🧪 Testing version compatibility...', 'info');
-
-        const currentVersion = window.bridge.schemaVersion;
-        log('📋 Current schema version: ' + currentVersion, 'info');
-
-        // Test with current version (should work)
+        log('Testing version ' + bridge.schemaVersion + '...', 'info');
         try {
-            log('✅ Testing with version ' + currentVersion + ' (current)...', 'info');
-            await window.bridge.call({
-                data: { action: 'deviceInfo' }
-            }, { version: currentVersion });
-            log('✅ Version ' + currentVersion + ' works as expected', 'success');
-        } catch (e) {
-            log('❌ Error with current version: ' + e.message, 'error');
-        }
+            await call('deviceInfo');
+            log('Version ' + bridge.schemaVersion + ' works', 'success');
+        } catch (e) { log('Error: ' + e.message, 'error'); }
+    }
 
-        // Example: Backend strategy
-        log('ℹ️ Backend strategy example:', 'info');
-        if (currentVersion >= 2) {
-            log('  → Would use v2 API (new features)', 'info');
-        } else {
-            log('  → Would use v1 API (legacy)', 'info');
+    // -- tests
+    async function runAllTests() {
+        log('Running all tests...', 'info');
+        var tests = [
+            { name: 'DeviceInfo', fn: getDeviceInfo },
+            { name: 'Network', fn: checkNetwork },
+            { name: 'Toast', fn: showToast },
+            { name: 'Clipboard', fn: copyToClipboard },
+            { name: 'Haptic', fn: triggerHaptic },
+            { name: 'Insets', fn: queryInsets },
+        ];
+        var passed = 0, failed = 0;
+        for (var i = 0; i < tests.length; i++) {
+            try { await tests[i].fn(); passed++; await new Promise(function (r) { setTimeout(r, 300); }); }
+            catch (e) { failed++; log('FAIL ' + tests[i].name + ': ' + e.message, 'error'); }
+        }
+        log('Tests: ' + passed + ' passed, ' + failed + ' failed', passed === tests.length ? 'success' : 'warning');
+    }
+
+    function testFireAndForget() {
+        trackEvent();
+        trackScreen();
+        log('Fire & forget test done', 'success');
+    }
+
+    async function testErrorHandling() {
+        log('Testing error handling...', 'info');
+        try {
+            await call('nonExistentAction');
+            log('ERROR: no error thrown', 'error');
+        } catch (e) {
+            log('Error handling works: ' + e.message, 'success');
         }
     }
 
-    async function testFutureVersion() {
-        log('🧪 Testing with future version (should be silently ignored)...', 'warning');
+    // -- bootstrap -------------------------------------------------------
+    window.addEventListener('bridgeReady', function () {
+        if (!bridgeReady) initBridge();
+    });
 
-        const futureVersion = window.bridge.schemaVersion + 1;
-        log('📋 Sending message with version ' + futureVersion + '...', 'info');
-        log('⚠️ Native will silently ignore this (no error, no response)', 'warning');
-
-        try {
-            // This will timeout because native ignores it
-            await window.bridge.call({
-                data: { action: 'deviceInfo' }
-            }, { version: futureVersion, timeout: 3000 });
-            log('❌ Unexpected: got a response!', 'error');
-        } catch (e) {
-            if (e.message.includes('timeout')) {
-                log('✅ Correctly timed out - native silently ignored version ' + futureVersion, 'success');
-            } else {
-                log('⚠️ Different error: ' + e.message, 'warning');
-            }
-        }
+    // Fallback: if bridgeReady event already fired before this script ran
+    if (window[BRIDGE] && window[BRIDGE].schemaVersion != null) {
+        initBridge();
     }
 
-    // Listen for bridgeReady event dispatched by native bridge
-    window.addEventListener('bridgeReady', () => {
-        log('🚀 Bridge ready event received', 'info');
-        if (!bridgeReady) {
-            initBridge();
-        }
+    // -- CodeMirror syntax highlighting ----------------------------------
+    var currentCmTheme = cmTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+    document.querySelectorAll('.cm-code').forEach(function (textarea) {
+        CodeMirror.fromTextArea(textarea, {
+            mode: textarea.getAttribute('data-mode') || 'javascript',
+            theme: currentCmTheme,
+            readOnly: true,
+            lineNumbers: false,
+            viewportMargin: Infinity,
+            scrollbarStyle: null,
+        });
     });
 </script>
 </body>
 </html>
-

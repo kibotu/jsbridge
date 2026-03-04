@@ -2,239 +2,159 @@ import Foundation
 import WebKit
 import Orchard
 
-/// Main JavaScript bridge coordinator that handles communication between WebView and native code
+/// Main JavaScript bridge coordinator for WKWebView ↔ native communication.
 ///
-/// **Why this architecture?**
-/// - **Centralized Control**: Single point of contact for all JS↔Native communication
-/// - **Version Management**: Enforces schema versioning to handle compatibility
-/// - **Handler Registry**: Dynamically routes messages to appropriate handlers
-/// - **Bidirectional Communication**: Supports both JS→Native calls and Native→JS events
+/// Configurable bridge name (default: `jsbridge`). The same name is used for:
+/// - The WKScriptMessageHandler registration
+/// - The `window.<name>` public JS API
+/// - The global callback names (`window.__<name>_handleResponse`, etc.)
 ///
-/// **Design Decisions:**
-/// - Uses weak references to avoid retain cycles with WebView and ViewController
-/// - Implements `WKScriptMessageHandler` to receive messages from JavaScript
-/// - Maintains handler registry to avoid massive switch statements
-/// - Uses JSON for serialization to ensure both sides speak the same language
-///
-/// **Why NSObject?**
-/// WKScriptMessageHandler is an Objective-C protocol, requiring NSObject inheritance.
-/// This is a WebKit API requirement, not a design choice.
+/// Uses a handler registry (strategy pattern) to route actions.
 class JavaScriptBridge: NSObject, WKScriptMessageHandler {
     private var handlers: [BridgeCommand] = []
     private weak var webView: WKWebView?
     private weak var viewController: UIViewController?
-    
-    let name = "bridge"
-    
-    /// Schema version supported by this bridge
-    ///
-    /// **Why version the schema?**
-    /// - Allows native app and web content to evolve independently
-    /// - Enables graceful degradation when versions mismatch
-    /// - Provides a mechanism to deprecate old command formats
+
+    let name: String
+
     private let schemaVersion: Int = 1
-    
-    /// Controls whether lifecycle events are sent to JavaScript
-    ///
-    /// **Why opt-in?** Not all web pages need lifecycle events. Making it opt-in:
-    /// - Reduces unnecessary traffic
-    /// - Avoids sending events before the web page is ready to handle them
-    /// - Gives web developers explicit control over when to start receiving events
-    var lifecycleEventsEnabled = false
-    
-    init(webView: WKWebView, viewController: UIViewController) {
+
+    private var callbackResponse: String { "__\(name)_handleResponse" }
+    private var callbackMessage: String { "__\(name)_handleNativeMessage" }
+
+    static let defaultBridgeName = "jsbridge"
+
+    init(webView: WKWebView, viewController: UIViewController, bridgeName: String = defaultBridgeName) {
+        self.name = bridgeName
         self.webView = webView
         self.viewController = viewController
         super.init()
-        
+
         setupMessageHandler()
         registerCommandHandlers()
         injectBridgeScript()
     }
-    
+
     deinit {
-        // Clean up the message handler when deallocating
-        // **Why clean up here?** Prevents crashes from messages being sent to deallocated handlers
-        // **Why not remove scripts?** User scripts may be shared across WKWebView instances
-        // using the same configuration. Removing them could break other views.
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: name)
     }
-    
+
     // MARK: - Setup
-    
-    /// Sets up the message handler that receives messages from JavaScript
-    ///
-    /// **Why remove before adding?**
-    /// WKUserContentController crashes if you add a handler with a name that already exists.
-    /// Since CoreWebViewController uses a shared WKWebViewConfiguration, multiple instances
-    /// might try to register the same handler name. Removing first ensures idempotency.
+
     private func setupMessageHandler() {
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: name)
         webView?.configuration.userContentController.add(self, name: name)
     }
-    
-    /// Registers all available command handlers
-    ///
-    /// **Why centralize registration?**
-    /// - Provides single source of truth for all available commands
-    /// - Makes it easy to see all bridge capabilities at a glance
-    /// - Enables conditional registration based on feature flags or configuration
-    ///
-    /// **Design Decision:**
-    /// Handlers are grouped by category (Device, UI, Navigation, etc.) to make
-    /// the list more maintainable and to help understand the bridge's scope.
+
     private func registerCommandHandlers() {
         // Device & System
         register(handler: DeviceInfoHandler())
         register(handler: NetworkStatusHandler())
         register(handler: OpenSettingsHandler())
-        
+
         // UI
         register(handler: ShowToastHandler(viewController: viewController))
         register(handler: ShowAlertHandler(viewController: viewController))
-        
+
         // Navigation
-        register(handler: TopNavigationHandler())
-        register(handler: BottomNavigationHandler())
+        register(handler: TopNavigationHandler(bridge: self))
+        register(handler: BottomNavigationHandler(bridge: self))
         register(handler: NavigationHandler(viewController: viewController, webView: webView))
         register(handler: OpenUrlHandler())
-        
+
         // System
         register(handler: SystemBarsHandler())
+        register(handler: GetInsetsHandler(viewController: viewController))
         register(handler: HapticHandler())
         register(handler: CopyToClipboardHandler())
-        
+
         // Storage
         register(handler: SaveSecureDataHandler())
         register(handler: LoadSecureDataHandler())
         register(handler: RemoveSecureDataHandler())
-        
+
         // Analytics
         register(handler: TrackEventHandler())
         register(handler: TrackScreenHandler())
-        
-        // Lifecycle & Refresh
-        register(handler: LifecycleEventsHandler(bridge: self))
+
+        // Refresh
         register(handler: RefreshHandler())
     }
-    
-    /// Register a command handler
-    ///
-    /// **Why use an array instead of a dictionary?**
-    /// - Simple and sufficient for our use case (small number of handlers)
-    /// - Preserves registration order (useful for debugging)
-    /// - Allows future enhancement: multiple handlers per action if needed
+
     private func register(handler: BridgeCommand) {
         handlers.append(handler)
         Orchard.v("[Bridge] Registered handler for action: \(handler.actionName)")
     }
-    
-    /// Get handler for the given action
+
     private func handler(for action: String) -> BridgeCommand? {
         return handlers.first { $0.actionName == action }
     }
-    
-    /// Check if a version is supported
-    ///
-    /// **Why allow lower versions?** Ensures backward compatibility.
-    /// New native versions can handle old web client messages. If the web uses
-    /// an older schema, the native bridge still processes it correctly.
+
     private func isVersionSupported(_ version: Int) -> Bool {
         return version <= schemaVersion
     }
-    
-    /// Injects the JavaScript bridge code into the WebView
-    ///
-    /// **Why inject at document start?**
-    /// Ensures the bridge API is available before any page scripts execute.
-    /// This prevents race conditions and provides a consistent, reliable interface.
-    ///
-    /// **Why main frame only?**
-    /// - Reduces overhead by not injecting into every iframe
-    /// - Prevents potential security issues from untrusted iframe content
-    /// - Simplifies the bridge lifetime and reduces message noise
-    private func injectBridgeScript() {
-        let script = JavaScriptBridgeScript.source(schemaVersion: schemaVersion)
+
+    /// Injects the unified bridge JavaScript into the WebView at document start.
+    func injectBridgeScript() {
+        let script = JavaScriptBridgeScript.source(bridgeName: name, schemaVersion: schemaVersion)
         let userScript = WKUserScript(
             source: script,
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         )
-        
+
         webView?.configuration.userContentController.addUserScript(userScript)
-        
-        Orchard.v("[Bridge] Bridge script injected (schema version \(schemaVersion))")
+        Orchard.v("[Bridge] Bridge script injected (name=\(name), schema v\(schemaVersion))")
     }
-    
+
     // MARK: - WKScriptMessageHandler
-    
-    /// Receives messages from JavaScript through the WebKit message handler
-    ///
-    /// **Why check the message name?** Although we only register for "Bridge",
-    /// defensive programming prevents issues if other message handlers are added later.
-    ///
-    /// **Why expect a String body?** JavaScript sends JSON-encoded strings, not objects.
-    /// This is a WebKit limitation: only certain types can cross the JS/Native boundary.
+
     func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
         guard message.name == name else { return }
-        
+
         guard let body = message.body as? String else {
             Orchard.w("[Bridge] Received invalid message body")
             return
         }
-        
+
         handleMessage(body)
     }
-    
+
     // MARK: - Message Handling
-    
-    /// Processes incoming messages from JavaScript
-    ///
-    /// **Why fail silently for unsupported versions?**
-    /// When the web content is newer than the app, it might send messages with
-    /// features we don't support. Failing silently allows the web to gracefully
-    /// degrade rather than breaking completely. The web side should check the
-    /// bridge version and adjust behavior accordingly.
-    ///
-    /// **Why use weak self in completion?**
-    /// Handler operations can be async and long-running. If the bridge is
-    /// deallocated before the handler completes, we shouldn't retain it just
-    /// to send a response that nothing can receive.
+
     private func handleMessage(_ messageString: String) {
         guard let data = messageString.data(using: .utf8) else {
             Orchard.e("[Bridge] Could not convert message to data")
             return
         }
-        
+
         let decoder = JSONDecoder()
-        
+
         guard let message = try? decoder.decode(JavaScriptBridgeMessage.self, from: data) else {
             Orchard.e("[Bridge] Could not decode message: \(messageString)")
             sendError(id: "unknown", error: .invalidMessage)
             return
         }
-        
-        // Check schema version
+
         if !isVersionSupported(message.version) {
             Orchard.w("[Bridge] Silently ignoring unsupported version: \(message.version)")
-            // Silently ignore messages with unsupported versions (as per spec)
             return
         }
-        
+
         let action = message.data.action
         let content = message.data.content?.mapValues { $0.value }
-        
+
         Orchard.v("[Bridge] Received action: \(action)")
-        
+
         guard let handler = handler(for: action) else {
             Orchard.w("[Bridge] Unknown action: \(action)")
             sendError(id: message.id, error: .unknownAction(action))
             return
         }
-        
+
         handler.handle(content: content) { [weak self] result in
             switch result {
             case .success(let responseData):
@@ -244,83 +164,52 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
             }
         }
     }
-    
-    // MARK: - Sending Responses
-    
+
+    // MARK: - Sending Responses (unified format: { id, data?, error? })
+
     private func sendSuccess(id: String, data: [String: Any]?) {
-        let response = JavaScriptBridgeResponse(
-            id: id,
-            success: true,
-            data: data?.mapValues { AnyCodable($0) },
-            error: nil
-        )
-        
-        sendResponse(response)
+        var response: [String: Any] = ["id": id]
+        if let data = data {
+            response["data"] = data
+        } else {
+            response["data"] = [String: Any]()
+        }
+        sendResponseJSON(response)
     }
-    
+
     private func sendError(id: String, error: BridgeError) {
-        let response = JavaScriptBridgeResponse(
-            id: id,
-            success: false,
-            data: nil,
-            error: JavaScriptBridgeResponse.ErrorInfo(
-                code: error.code,
-                message: error.message
-            )
-        )
-        
-        sendResponse(response)
+        let response: [String: Any] = [
+            "id": id,
+            "error": [
+                "code": error.code,
+                "message": error.message
+            ]
+        ]
+        sendResponseJSON(response)
     }
-    
-    /// Sends a response back to JavaScript
-    ///
-    /// **Why use evaluateJavaScript instead of postMessage?**
-    /// Native to JS communication requires evaluating JavaScript code. There's no
-    /// built-in reverse message channel in WKWebView.
-    ///
-    /// **Why dispatch to main queue?**
-    /// WKWebView JavaScript evaluation must happen on the main thread. Handler
-    /// completions might come from background threads (network, storage, etc.),
-    /// so we explicitly dispatch to main to ensure thread safety.
-    ///
-    /// **Why use double underscore prefix (__bridge)?**
-    /// Signals these are internal bridge functions, not part of the public API.
-    /// Reduces chance of naming conflicts with web application code.
-    private func sendResponse(_ response: JavaScriptBridgeResponse) {
-        let encoder = JSONEncoder()
-        
-        guard let data = try? encoder.encode(response),
-              let jsonString = String(data: data, encoding: .utf8) else {
-            Orchard.e("Failed to encode bridge response")
+
+    /// Serializes the response dict and calls the unified JS callback.
+    private func sendResponseJSON(_ response: [String: Any]) {
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: response),
+              let jsonString = String(data: jsonData, encoding: .utf8) else {
+            Orchard.e("[Bridge] Failed to encode response")
             return
         }
-        
-        let script = "window.__bridgeHandleResponse(\(jsonString));"
-        
+
+        let script = "window.\(callbackResponse) && window.\(callbackResponse)(\(jsonString));"
+
         DispatchQueue.main.async { [weak self] in
             self?.webView?.evaluateJavaScript(script) { _, error in
                 if let error = error {
-                    Orchard.e("Failed to send bridge response: \(error)")
+                    Orchard.e("[Bridge] Failed to send response: \(error)")
                 }
             }
         }
     }
-    
+
     // MARK: - Native to Web Communication
-    
-    /// Send a message from native to web (fire-and-forget, no response expected)
-    ///
-    /// **Why have native-to-web messaging?**
-    /// Enables reactive patterns where native code can notify JavaScript about events:
-    /// - Lifecycle changes (app backgrounded/foregrounded)
-    /// - Deep link activations
-    /// - Push notification arrivals
-    /// - System state changes (network status, etc.)
-    ///
-    /// **Why no response mechanism here?**
-    /// This is event-based, not request-based. Native broadcasts events and
-    /// doesn't need acknowledgment. This simplifies the flow and prevents
-    /// deadlocks or coordination issues.
+
+    /// Send a message from native to web (fire-and-forget).
     func sendToWeb(action: String, content: [String: Any]? = nil) {
         let message: [String: Any] = [
             "data": [
@@ -328,36 +217,64 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
                 "content": content ?? [:]
             ]
         ]
-        
+
         guard let jsonData = try? JSONSerialization.data(withJSONObject: message),
               let jsonString = String(data: jsonData, encoding: .utf8) else {
-            Orchard.e("Failed to serialize message to web")
+            Orchard.e("[Bridge] Failed to serialize message to web")
             return
         }
-        
-        let script = "window.__bridgeReceiveNativeMessage(\(jsonString));"
-        
+
+        let script = "window.\(callbackMessage) && window.\(callbackMessage)(\(jsonString));"
+
         DispatchQueue.main.async { [weak self] in
             self?.webView?.evaluateJavaScript(script) { _, error in
                 if let error = error {
-                    Orchard.e("Failed to send message to web: \(error)")
+                    Orchard.e("[Bridge] Failed to send message to web: \(error)")
                 }
             }
         }
     }
-    
+
+    // MARK: - Safe Area CSS Injection
+
+    /// Injects/updates CSS custom properties for safe area insets.
+    /// Call whenever bars change visibility, on rotation, or keyboard show/hide.
+    func updateSafeAreaCSS(
+        insetTop: CGFloat = 0,
+        insetBottom: CGFloat = 0,
+        insetLeft: CGFloat = 0,
+        insetRight: CGFloat = 0,
+        statusBarHeight: CGFloat = 0,
+        topNavHeight: CGFloat = 0,
+        bottomNavHeight: CGFloat = 0,
+        systemNavHeight: CGFloat = 0
+    ) {
+        let js = """
+        (function() {
+            var el = document.documentElement;
+            el.style.setProperty('--bridge-inset-top', '\(Int(insetTop))px');
+            el.style.setProperty('--bridge-inset-bottom', '\(Int(insetBottom))px');
+            el.style.setProperty('--bridge-inset-left', '\(Int(insetLeft))px');
+            el.style.setProperty('--bridge-inset-right', '\(Int(insetRight))px');
+            el.style.setProperty('--bridge-status-bar', '\(Int(statusBarHeight))px');
+            el.style.setProperty('--bridge-top-nav', '\(Int(topNavHeight))px');
+            el.style.setProperty('--bridge-bottom-nav', '\(Int(bottomNavHeight))px');
+            el.style.setProperty('--bridge-system-nav', '\(Int(systemNavHeight))px');
+        })();
+        """
+
+        DispatchQueue.main.async { [weak self] in
+            self?.webView?.evaluateJavaScript(js) { _, error in
+                if let error = error {
+                    Orchard.e("[Bridge] Failed to inject safe area CSS: \(error)")
+                }
+            }
+        }
+    }
+
     // MARK: - Lifecycle Events
-    
-    /// Notifies JavaScript about lifecycle events
-    ///
-    /// **Why gate with lifecycleEventsEnabled?**
-    /// - Not all web pages need lifecycle events
-    /// - Prevents sending events before web page registers handlers (would be lost)
-    /// - Reduces unnecessary message traffic
-    /// - Gives web developers explicit control via the lifecycleEvents command
+
     func notifyLifecycleEvent(_ event: String) {
-        guard lifecycleEventsEnabled else { return }
         sendToWeb(action: "lifecycle", content: ["event": event])
     }
 }
-

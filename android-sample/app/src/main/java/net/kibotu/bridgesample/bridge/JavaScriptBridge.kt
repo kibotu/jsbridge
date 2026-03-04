@@ -6,66 +6,82 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import net.kibotu.bridgesample.bridge.decorators.BridgeWebViewClient
 import org.json.JSONObject
 import timber.log.Timber
 
 /**
  * Enables seamless bidirectional communication between web content and native Android.
  *
- * **Why this exists:**
- * WebViews are isolated sandboxes - web code cannot directly access native Android APIs
- * (camera, storage, sensors, etc.) for security reasons. This bridge safely exposes
- * native capabilities to web applications without compromising security.
- *
- * **Why this design:**
- * - Uses @JavascriptInterface to comply with Android WebView security requirements
- * - Processes messages on background thread to prevent blocking UI during JSON parsing
- * - Injects JavaScript code to provide web-side API, ensuring consistent interface
- * - Implements request-response pattern with IDs for async communication reliability
- * - Version negotiation prevents crashes when web/native are updated independently
- *
- * **Key architectural decisions:**
- * - Coroutines for async handling - prevents ANRs on slow operations
- * - Message handler abstraction - allows different command routing strategies
- * - Silent version mismatch handling - graceful degradation when versions differ
- * - Promise-based web API - familiar pattern for web developers
+ * Web content interacts via `window.<bridgeName>` (default: `window.jsbridge`).
+ * The bridge name is configurable so each app can use its own namespace.
  *
  * Based on check-mate specification for standardized web-native communication.
  *
  * @param webView The WebView instance to bridge with
  * @param messageHandler Handles routing and execution of bridge commands
+ * @param bridgeName Name exposed to JavaScript (default [DEFAULT_BRIDGE_NAME])
  * @see <a href="https://github.com/kibotu/check-mate">check-mate specification</a>
  */
 class JavaScriptBridge(
     private val webView: WebView,
-    private val messageHandler: BridgeMessageHandler
+    private val messageHandler: BridgeMessageHandler,
+    private val bridgeName: String = DEFAULT_BRIDGE_NAME
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    companion object {
-        const val BRIDGE_NAME = "Bridge"
+    private val callbackResponse get() = "__${bridgeName}_handleResponse"
+    private val callbackMessage get() = "__${bridgeName}_handleNativeMessage"
 
-        // Schema version: Simple integer, increment on breaking changes
+    companion object {
+        const val DEFAULT_BRIDGE_NAME = "jsbridge"
         const val SCHEMA_VERSION = 1
+
+        /**
+         * Extension to retrieve the bridge from a WebView's tag.
+         */
+        @Suppress("unused")
+        val WebView.bridge: JavaScriptBridge?
+            get() = tag as? JavaScriptBridge
+
+        /**
+         * One-liner to set up the JavaScript bridge on a [WebView].
+         *
+         * - Creates the bridge and registers the `@JavascriptInterface`
+         * - Wraps the existing [android.webkit.WebViewClient] with [BridgeWebViewClient]
+         *   (decorator pattern) so bridge injection and safe area CSS happen automatically
+         * - Stores the bridge in [WebView.tag] for retrieval
+         *
+         * ```kotlin
+         * // In a Fragment / Compose factory — that's it:
+         * val bridge = JavaScriptBridge.inject(webView, DefaultBridgeMessageHandler())
+         * ```
+         *
+         * @return The created [JavaScriptBridge] instance.
+         */
+        fun inject(
+            webView: WebView,
+            messageHandler: BridgeMessageHandler,
+            bridgeName: String = DEFAULT_BRIDGE_NAME
+        ): JavaScriptBridge {
+            val bridge = JavaScriptBridge(webView, messageHandler, bridgeName)
+            webView.addJavascriptInterface(bridge, bridgeName)
+            webView.tag = bridge
+
+            val currentClient = webView.webViewClient
+            webView.webViewClient = BridgeWebViewClient(currentClient)
+
+            Timber.d("[Bridge] Injected (name=$bridgeName)")
+            return bridge
+        }
     }
 
     /**
      * Entry point for all web-to-native communication.
      *
-     * **Why @JavascriptInterface:**
-     * Android requires explicit annotation for security - only annotated methods
-     * are accessible from JavaScript, preventing accidental exposure of native APIs.
-     *
-     * **Why background thread:**
-     * WebView invokes this on a background thread by design. We use coroutines
-     * to safely dispatch to appropriate threads (Main for UI, IO for storage).
-     *
-     * **Why version checking:**
-     * Allows independent web/native deployments. Silently ignores newer web versions
-     * to prevent crashes, allowing web to use progressive enhancement.
-     *
-     * @param message JSON string from web: `{ id?, data: { version?, action, content? } }`
+     * @param message JSON string from web: `{ id?, version?, data: { action, content? } }`
      */
+    @Suppress("unused")
     @JavascriptInterface
     fun postMessage(message: String) {
         Timber.d("[postMessage] received: $message")
@@ -81,11 +97,10 @@ class JavaScriptBridge(
                     return@launch
                 }
 
-                // Check schema version - silently ignore if web is using a newer version
-                val requestedVersion = data.optInt("version", SCHEMA_VERSION)
+                val requestedVersion = messageObj.optInt("version", SCHEMA_VERSION)
                 if (requestedVersion > SCHEMA_VERSION) {
                     Timber.w("[postMessage] Ignoring message with version $requestedVersion (current: $SCHEMA_VERSION)")
-                    return@launch  // Silently ignore - web is using newer features
+                    return@launch
                 }
 
                 val action = data.optString("action", null)
@@ -95,11 +110,8 @@ class JavaScriptBridge(
                 }
 
                 val content = data.opt("content")
-
-                // Handle the message
                 val result = messageHandler.handle(action, content)
 
-                // If there's an ID, send response back to web
                 if (!id.isNullOrEmpty()) {
                     sendResponseToWeb(id, result)
                 }
@@ -113,63 +125,33 @@ class JavaScriptBridge(
     }
 
     /**
-     * Send messages from native to web (push notifications, state updates, events).
-     *
-     * **Why native-to-web:**
-     * Enables native code to notify web of events: network changes, permission results,
-     * background task completions. Completes the bidirectional communication loop.
-     *
-     * **Why optional callback:**
-     * Most native-to-web messages are fire-and-forget notifications. Callback support
-     * exists for cases where native needs confirmation web received the message.
-     *
-     * @param action The action identifier (e.g., "networkChanged", "permissionResult")
-     * @param content Optional message payload
-     * @param callback Optional callback invoked when web responds (rarely needed)
+     * Send a message from native to web (push notifications, state updates, events).
      */
-    fun sendToWeb(action: String, content: Any? = null, callback: ((Any?) -> Unit)? = null) {
+    fun sendToWeb(action: String, content: Any? = null) {
         scope.launch {
             try {
-                val messageId = if (callback != null) generateMessageId() else null
-                val message = buildMessage(messageId, action, content)
-
-                val script = "window.bridge && window.bridge._handleNativeMessage($message)"
+                val message = buildNativeMessage(action, content)
+                val script = "window.$callbackMessage && window.$callbackMessage($message)"
                 executeJavaScript(script)
-
                 Timber.d("[sendToWeb] action=$action content=$content")
             } catch (e: Exception) {
                 Timber.e(e)
-                callback?.invoke(null)
             }
         }
     }
 
-    /**
-     * Completes the request-response cycle for async web requests.
-     *
-     * **Why separate response method:**
-     * Web requests with IDs expect responses. This resolves the Promise on web side,
-     * completing async operations and allowing web code to continue execution.
-     */
     private fun sendResponseToWeb(id: String, result: Any?) {
         val response = JSONObject().apply {
             put("id", id)
             put("data", result)
         }
 
-        val script = "window.bridge && window.bridge._handleNativeResponse($response)"
+        val script = "window.$callbackResponse && window.$callbackResponse($response)"
         executeJavaScript(script)
 
         Timber.d("[sendResponseToWeb] id=$id result=$result")
     }
 
-    /**
-     * Communicates failures to web code, enabling proper error handling.
-     *
-     * **Why structured errors:**
-     * Provides code + message for web to distinguish error types (network vs permission
-     * vs invalid input) and show appropriate UI to users.
-     */
     private fun sendErrorToWeb(id: String?, code: String, message: String) {
         val error = JSONObject().apply {
             put("code", code)
@@ -181,31 +163,28 @@ class JavaScriptBridge(
             put("error", error)
         }
 
-        val script = "window.bridge && window.bridge._handleNativeResponse($response)"
+        val script = "window.$callbackResponse && window.$callbackResponse($response)"
         executeJavaScript(script)
 
         Timber.w("[sendErrorToWeb] id=$id code=$code message=$message")
     }
 
-    /**
-     * Build a message object.
-     */
-    private fun buildMessage(id: String?, action: String, content: Any?): String {
+    private fun buildNativeMessage(action: String, content: Any?): String {
         val message = JSONObject()
-        if (id != null) message.put("id", id)
-
         val data = JSONObject().apply {
             put("action", action)
-            if (content != null) put("content", content)
+            if (content != null) {
+                val jsonContent = when (content) {
+                    is Map<*, *> -> JSONObject(content)
+                    else -> content
+                }
+                put("content", jsonContent)
+            }
         }
         message.put("data", data)
-
         return message.toString()
     }
 
-    /**
-     * Execute JavaScript in the WebView.
-     */
     private fun executeJavaScript(script: String) {
         webView.post {
             webView.evaluateJavascript(script, null)
@@ -213,350 +192,205 @@ class JavaScriptBridge(
     }
 
     /**
-     * Generate a unique message ID.
+     * Inject safe area CSS custom properties into the WebView.
+     * Call this whenever bars change visibility, on rotation, or on keyboard show/hide.
      */
-    private fun generateMessageId(): String {
-        return "native_${System.currentTimeMillis()}_${(Math.random() * 10000).toInt()}"
+    fun updateSafeAreaCSS(
+        insetTop: Int = 0,
+        insetBottom: Int = 0,
+        insetLeft: Int = 0,
+        insetRight: Int = 0,
+        statusBarHeight: Int = 0,
+        topNavHeight: Int = 0,
+        bottomNavHeight: Int = 0,
+        systemNavHeight: Int = 0
+    ) {
+        val js = """
+            (function() {
+                var el = document.documentElement;
+                el.style.setProperty('--bridge-inset-top', '${insetTop}px');
+                el.style.setProperty('--bridge-inset-bottom', '${insetBottom}px');
+                el.style.setProperty('--bridge-inset-left', '${insetLeft}px');
+                el.style.setProperty('--bridge-inset-right', '${insetRight}px');
+                el.style.setProperty('--bridge-status-bar', '${statusBarHeight}px');
+                el.style.setProperty('--bridge-top-nav', '${topNavHeight}px');
+                el.style.setProperty('--bridge-bottom-nav', '${bottomNavHeight}px');
+                el.style.setProperty('--bridge-system-nav', '${systemNavHeight}px');
+            })();
+        """.trimIndent()
+        executeJavaScript(js)
     }
 
     /**
-     * Injects the bridge JavaScript API into the WebView's global scope.
-     *
-     * **Why injection:**
-     * Provides a clean, Promise-based API (`window.bridge.call()`) to web developers,
-     * abstracting the complexity of JavascriptInterface communication and message routing.
-     *
-     * **When to call:**
-     * Call on page load and after navigation to ensure bridge is always available to web code.
+     * Injects the unified bridge JavaScript API into the WebView.
+     * Call on page load and after navigation.
      */
     fun injectBridgeScript() {
         val script = getBridgeJavaScript()
         executeJavaScript(script)
-        Timber.d("[injectBridgeScript] Bridge script injected")
+        Timber.d("[injectBridgeScript] Bridge script injected (bridgeName=$bridgeName)")
     }
 
-    /**
-     * Generates the bridge JavaScript implementation injected into web pages.
-     *
-     * **Why inline JavaScript:**
-     * Self-contained bridge requires no external files, reducing failure points.
-     * Version constant ensures web/native version alignment.
-     *
-     * **Key features:**
-     * - Promise-based API - modern async/await support for web developers
-     * - Timeout handling - prevents hanging when native doesn't respond
-     * - Bidirectional messaging - handles both web→native and native→web
-     * - Event handlers - allows web to subscribe to native events
-     */
     private fun getBridgeJavaScript(): String {
         return """
-(function() {
-    'use strict';
-    
-    try {
-        // Wrap initialization in a local function for safe execution
-        function initializeBridge() {
-            // Start timing initialization
-            const initStartTime = performance.now();
-            
-            // Prevent double initialization
-            if (window.bridge) {
-                console.warn('[Bridge] Already initialized');
-                return;
-            }
-            
-            // Configuration
-            const SCHEMA_VERSION = $SCHEMA_VERSION;
-            const DEFAULT_TIMEOUT = 30000; // 30 seconds
-            let debug = false;
-            
-            // State management
-            const pendingPromises = new Map();
-            let messageHandler = null;
-            let messageIdCounter = 0;
-            
-            // Bridge ready promise - resolved asynchronously to allow page initialization
-            let readyResolve;
-            const readyPromise = new Promise((resolve) => {
-                readyResolve = resolve;
-            });
-            
-            /**
-             * Debug logging helper
-             * @private
-             */
-            const debugLog = (...args) => {
-                if (debug) {
-                    console.log('[Bridge]', ...args);
-                }
-            };
-            
-            /**
-             * Dispatch bridge ready event for legacy compatibility
-             * @private
-             */
-            const dispatchReadyEvent = () => {
-                try {
-                    window.dispatchEvent(new CustomEvent('bridgeReady', {
-                        detail: { schemaVersion: SCHEMA_VERSION }
-                    }));
-                } catch (error) {
-                    console.error('[Bridge] Failed to dispatch ready event:', error);
-                }
-            };
-            
-            /**
-             * Generate unique message ID with counter and timestamp
-             * @private
-             * @returns {string} Unique message identifier
-             */
-            const generateId = () => {
-                return `msg_${'$'}{Date.now()}_${'$'}{++messageIdCounter}_${'$'}{Math.random().toString(36).substr(2, 9)}`;
-            };
-            
-            /**
-             * Validate message structure
-             * @private
-             * @throws {Error} If message is invalid
-             */
-            const validateMessage = (message) => {
-                if (!message || typeof message !== 'object') {
-                    throw new Error('Message must be an object');
-                }
-                if (!message.data || typeof message.data !== 'object') {
-                    throw new Error('Message must contain a data object');
-                }
-                if (!message.data.action || typeof message.data.action !== 'string') {
-                    throw new Error('Message data must contain an action string');
-                }
-            };
-            
-            /**
-             * Send message to native side
-             * @private
-             * @throws {Error} If native bridge is not available
-             */
-            const sendToNative = (message) => {
-                if (!window.${BRIDGE_NAME}) {
-                    throw new Error('Native bridge not available');
-                }
-                
-                try {
-                    const messageString = JSON.stringify(message);
-                    window.${BRIDGE_NAME}.postMessage(messageString);
-                } catch (error) {
-                    throw new Error(`Failed to send message: ${'$'}{error.message}`);
-                }
-            };
-            
-            /**
-             * Clean up pending promise
-             * @private
-             */
-            const cleanupPromise = (id, timeoutId) => {
-                clearTimeout(timeoutId);
-                pendingPromises.delete(id);
-            };
-            
-            // Public API
-            const bridge = {
-                /** Schema version of the bridge protocol */
-                schemaVersion: SCHEMA_VERSION,
-                
-                /**
-                 * Wait for bridge to be ready
-                 * @returns {Promise<void>} Promise that resolves when bridge is ready
-                 */
-                ready() {
-                    return readyPromise;
-                },
-                
-                /**
-                 * Enable or disable debug logging
-                 * @param {boolean} enabled - Whether to enable debug logging
-                 */
-                setDebug(enabled) {
-                    debug = Boolean(enabled);
-                    debugLog(`Debug logging ${'$'}{debug ? 'enabled' : 'disabled'}`);
-                },
-                
-                /**
-                 * Call native with a message
-                 * @param {Object} message - Message with data property containing action and optional content
-                 * @param {string} message.data.action - Action identifier
-                 * @param {Object} [message.data.content] - Optional content payload
-                 * @param {Object} [options] - Call options
-                 * @param {number} [options.timeout=30000] - Timeout in milliseconds
-                 * @returns {Promise<any>} Promise that resolves with the native response
-                 * @throws {Error} If message is invalid or native bridge unavailable
-                 * 
-                 * @example
-                 * // Simple call
-                 * await bridge.call({ data: { action: 'deviceInfo' } });
-                 * 
-                 * @example
-                 * // Call with content and custom timeout
-                 * await bridge.call(
-                 *   { data: { action: 'navigate', content: { url: 'https://...' } } },
-                 *   { timeout: 5000 }
-                 * );
-                 */
-                call(message, options = {}) {
-                    return new Promise((resolve, reject) => {
-                        try {
-                            // Validate input
-                            validateMessage(message);
-                            
-                            const id = generateId();
-                            const timeout = options.timeout ?? DEFAULT_TIMEOUT;
-                            
-                            const fullMessage = {
-                                version: SCHEMA_VERSION,
-                                id,
-                                data: message.data
-                            };
-                            
-                            debugLog('Calling native:', fullMessage);
-                            
-                            // Set up timeout
-                            const timeoutId = setTimeout(() => {
-                                cleanupPromise(id, timeoutId);
-                                debugLog(`Request timeout for id: ${'$'}{id}`);
-                                reject(new Error(`Request timeout after ${'$'}{timeout}ms`));
-                            }, timeout);
-                            
-                            // Store promise handlers
-                            pendingPromises.set(id, {
-                                resolve: (data) => {
-                                    cleanupPromise(id, timeoutId);
-                                    debugLog(`Request resolved for id: ${'$'}{id}`, data);
-                                    resolve(data);
-                                },
-                                reject: (error) => {
-                                    cleanupPromise(id, timeoutId);
-                                    debugLog(`Request rejected for id: ${'$'}{id}`, error);
-                                    reject(error);
-                                }
-                            });
-                            
-                            // Send to native
-                            sendToNative(fullMessage);
-                            
-                        } catch (error) {
-                            debugLog('Call failed:', error);
-                            reject(error);
-                        }
-                    });
-                },
-                
-                /**
-                 * Register a handler for messages from native
-                 * @param {Function} handler - Handler function that receives messages
-                 * @throws {Error} If handler is not a function
-                 * 
-                 * @example
-                 * bridge.on((message) => {
-                 *   console.log('Received from native:', message);
-                 * });
-                 */
-                on(handler) {
-                    if (typeof handler !== 'function') {
-                        throw new Error('Handler must be a function');
-                    }
-                    messageHandler = handler;
-                    debugLog('Message handler registered');
-                },
-                
-                /**
-                 * Get current bridge statistics
-                 * @returns {Object} Statistics object
-                 */
-                getStats() {
-                    return {
-                        pendingRequests: pendingPromises.size,
-                        schemaVersion: SCHEMA_VERSION,
-                        debugEnabled: debug
-                    };
-                },
-                
-                /**
-                 * Handle response from native (internal API called by Kotlin)
-                 * @param {Object} response - Response object with id, data/error
-                 * @internal
-                 */
-                _handleNativeResponse(response) {
-                    debugLog('Received response:', response);
-                    
-                    if (!response || typeof response !== 'object' || !response.id) {
-                        console.error('[Bridge] Invalid response format:', response);
-                        return;
-                    }
-                    
-                    const promise = pendingPromises.get(response.id);
-                    if (!promise) {
-                        debugLog(`No pending promise found for id: ${'$'}{response.id}`);
-                        return;
-                    }
-                    
-                    // Handle both success/error format and data/error format
-                    if (response.error) {
-                        const error = new Error(response.error?.message ?? 'Unknown error');
-                        if (response.error?.code) {
-                            error.code = response.error.code;
-                        }
-                        promise.reject(error);
-                    } else {
-                        promise.resolve(response.data ?? {});
-                    }
-                },
-                
-                /**
-                 * Handle message from native (internal API called by Kotlin)
-                 * @param {Object} message - Message object from native
-                 * @internal
-                 */
-                _handleNativeMessage(message) {
-                    debugLog('Received native message:', message);
-                    
-                    if (!messageHandler) {
-                        debugLog('No message handler registered');
-                        return;
-                    }
-                    
-                    try {
-                        messageHandler(message);
-                    } catch (error) {
-                        console.error('[Bridge] Error in message handler:', error);
-                    }
-                }
-            };
-            
-            // Expose bridge to window
-            Object.defineProperty(window, 'bridge', {
-                value: Object.freeze(bridge),
-                writable: false,
-                configurable: false
-            });
-            
-            // Mark bridge as ready after current execution context
-            // setTimeout ensures bridge is ready after page scripts have a chance to set up listeners
-            setTimeout(() => {
-                const initDuration = performance.now() - initStartTime;
-                readyResolve();
-                dispatchReadyEvent();
-                console.log(`[Bridge] ✓ Android JavaScript Bridge initialized successfully (schema version ${'$'}{SCHEMA_VERSION}) - took ${'$'}{initDuration.toFixed(2)}ms`);
-                debugLog(`Android JavaScript Bridge ready (schema version ${'$'}{SCHEMA_VERSION})`);
-            }, 0);
+(function () {
+  'use strict';
+
+  try {
+    (function initializeBridge() {
+      var BRIDGE_NAME = '$bridgeName';
+      var SCHEMA_VERSION = $SCHEMA_VERSION;
+      var DEFAULT_TIMEOUT = 30000;
+      var CALLBACK_RESPONSE = '__' + BRIDGE_NAME + '_handleResponse';
+      var CALLBACK_MESSAGE = '__' + BRIDGE_NAME + '_handleNativeMessage';
+
+      var nativeAndroid = (window[BRIDGE_NAME] && typeof window[BRIDGE_NAME].postMessage === 'function')
+        ? window[BRIDGE_NAME]
+        : null;
+
+      var nativeIOS = (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers[BRIDGE_NAME])
+        ? window.webkit.messageHandlers[BRIDGE_NAME]
+        : null;
+
+      if (window[BRIDGE_NAME] && window[BRIDGE_NAME].schemaVersion != null) {
+        console.warn('[' + BRIDGE_NAME + '] Already initialized');
+        return;
+      }
+
+      var initStart = performance.now();
+      var debug = false;
+      var pendingPromises = {};
+      var messageHandlers = [];
+      var mockHandler = null;
+      var idCounter = 0;
+      var platform = nativeAndroid ? 'android' : (nativeIOS ? 'ios' : 'desktop');
+
+      var readyResolve;
+      var readyPromise = new Promise(function (resolve) { readyResolve = resolve; });
+
+      function debugLog() {
+        if (debug) {
+          var args = ['[' + BRIDGE_NAME + ']'];
+          for (var i = 0; i < arguments.length; i++) args.push(arguments[i]);
+          console.log.apply(console, args);
         }
-        
-        // Execute initialization
-        initializeBridge();
-        
-    } catch (error) {
-        console.error('[Bridge] Initialization failed:', error);
-    }
+      }
+
+      function generateId() {
+        return 'msg_' + Date.now() + '_' + (++idCounter) + '_' + Math.random().toString(36).substr(2, 9);
+      }
+
+      function validateMessage(message) {
+        if (!message || typeof message !== 'object') throw new Error('Message must be an object');
+        if (!message.data || typeof message.data !== 'object') throw new Error('Message must contain a data object');
+        if (!message.data.action || typeof message.data.action !== 'string') throw new Error('Message data must contain an action string');
+      }
+
+      function sendToNative(message) {
+        var str = JSON.stringify(message);
+        if (nativeAndroid) { nativeAndroid.postMessage(str); return; }
+        if (nativeIOS) { nativeIOS.postMessage(str); return; }
+        if (mockHandler) {
+          try {
+            var result = mockHandler(message);
+            if (result && typeof result.then === 'function') {
+              result.then(function (d) { handleResponse({ id: message.id, data: d }); })
+                    .catch(function (e) { handleResponse({ id: message.id, error: { code: 'MOCK_ERROR', message: e.message || String(e) } }); });
+            } else {
+              setTimeout(function () { handleResponse({ id: message.id, data: result }); }, 0);
+            }
+          } catch (e) {
+            setTimeout(function () { handleResponse({ id: message.id, error: { code: 'MOCK_ERROR', message: e.message || String(e) } }); }, 0);
+          }
+          return;
+        }
+        throw new Error('Native bridge not available. Use ' + BRIDGE_NAME + '.setMockHandler(fn) for desktop testing.');
+      }
+
+      function cleanupPromise(id) {
+        var entry = pendingPromises[id];
+        if (entry && entry.timeoutId) clearTimeout(entry.timeoutId);
+        delete pendingPromises[id];
+      }
+
+      function handleResponse(response) {
+        debugLog('Received response:', response);
+        if (!response || typeof response !== 'object' || !response.id) { console.error('[' + BRIDGE_NAME + '] Invalid response:', response); return; }
+        var entry = pendingPromises[response.id];
+        if (!entry) { debugLog('No pending promise for id: ' + response.id); return; }
+        cleanupPromise(response.id);
+        if (response.error) {
+          var err = new Error(response.error.message || 'Unknown error');
+          err.code = response.error.code || 'UNKNOWN';
+          entry.reject(err);
+        } else {
+          entry.resolve(response.data != null ? response.data : {});
+        }
+      }
+
+      function handleNativeMessage(message) {
+        debugLog('Received native message:', message);
+        if (messageHandlers.length === 0) { debugLog('No message handlers registered'); return; }
+        for (var i = 0; i < messageHandlers.length; i++) {
+          try { messageHandlers[i](message); } catch (e) { console.error('[' + BRIDGE_NAME + '] Handler error:', e); }
+        }
+      }
+
+      var bridge = {
+        schemaVersion: SCHEMA_VERSION,
+        platform: platform,
+        ready: function () { return readyPromise; },
+        setDebug: function (enabled) { debug = Boolean(enabled); debugLog('Debug ' + (debug ? 'enabled' : 'disabled')); },
+        call: function (message, options) {
+          options = options || {};
+          return new Promise(function (resolve, reject) {
+            try {
+              validateMessage(message);
+              var id = generateId();
+              var timeout = options.timeout != null ? options.timeout : DEFAULT_TIMEOUT;
+              var fullMessage = { version: SCHEMA_VERSION, id: id, data: message.data };
+              debugLog('Calling native:', fullMessage);
+              var timeoutId = setTimeout(function () { cleanupPromise(id); reject(new Error('Request timeout after ' + timeout + 'ms')); }, timeout);
+              pendingPromises[id] = { resolve: resolve, reject: reject, timeoutId: timeoutId };
+              sendToNative(fullMessage);
+            } catch (e) { debugLog('Call failed:', e); reject(e); }
+          });
+        },
+        on: function (handler) {
+          if (typeof handler !== 'function') throw new Error('Handler must be a function');
+          messageHandlers.push(handler);
+          debugLog('Handler registered (' + messageHandlers.length + ' total)');
+        },
+        off: function (handler) {
+          var idx = messageHandlers.indexOf(handler);
+          if (idx !== -1) { messageHandlers.splice(idx, 1); debugLog('Handler removed (' + messageHandlers.length + ' remaining)'); }
+        },
+        setMockHandler: function (handler) {
+          if (handler !== null && typeof handler !== 'function') throw new Error('Mock handler must be a function or null');
+          mockHandler = handler;
+          if (handler) { platform = 'desktop'; debugLog('Mock handler set'); }
+        },
+        getStats: function () {
+          return { pendingRequests: Object.keys(pendingPromises).length, schemaVersion: SCHEMA_VERSION, platform: platform, handlers: messageHandlers.length, debugEnabled: debug };
+        }
+      };
+
+      window[CALLBACK_RESPONSE] = handleResponse;
+      window[CALLBACK_MESSAGE] = handleNativeMessage;
+
+      Object.defineProperty(window, BRIDGE_NAME, { value: Object.freeze(bridge), writable: false, configurable: false });
+
+      setTimeout(function () {
+        var ms = (performance.now() - initStart).toFixed(2);
+        readyResolve();
+        try { window.dispatchEvent(new CustomEvent('bridgeReady', { detail: { schemaVersion: SCHEMA_VERSION, platform: platform } })); } catch (e) {}
+        console.log('[' + BRIDGE_NAME + '] Initialized (v' + SCHEMA_VERSION + ', ' + platform + ') in ' + ms + 'ms');
+      }, 0);
+    })();
+  } catch (e) {
+    console.error('[Bridge] Init failed:', e);
+  }
 })();
 """
     }
 }
-

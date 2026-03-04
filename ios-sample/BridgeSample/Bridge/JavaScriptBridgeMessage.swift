@@ -53,29 +53,14 @@ struct JavaScriptBridgeMessage: Codable {
     }
 }
 
-/// Represents a response from native to JavaScript
+/// Unified response format: `{ id, data?, error? }`.
 ///
-/// **Why separate request/response types?**
-/// - Clarifies the flow direction (native → JavaScript)
-/// - Ensures responses always include success status
-/// - Follows standard RPC patterns familiar to developers
+/// If `error` is present → failure. Otherwise → success.
+/// The redundant `success` boolean has been removed to align
+/// Android and iOS on a single response shape.
 struct JavaScriptBridgeResponse: Codable {
-    /// The message ID this response corresponds to
-    ///
-    /// **Why include ID?** JavaScript maintains a map of pending promises by ID.
-    /// This allows it to resolve the correct promise when the response arrives.
     let id: String
-    
-    /// Whether the operation succeeded
-    ///
-    /// **Why a boolean flag?** Makes error handling explicit and prevents ambiguity.
-    /// JavaScript can quickly check success before accessing data or error fields.
-    let success: Bool
-    
-    /// The response data (if successful)
     let data: [String: AnyCodable]?
-    
-    /// Error information (if failed)
     let error: ErrorInfo?
     
     struct ErrorInfo: Codable {
@@ -83,9 +68,8 @@ struct JavaScriptBridgeResponse: Codable {
         let message: String
     }
     
-    init(id: String, success: Bool, data: [String: AnyCodable]? = nil, error: ErrorInfo? = nil) {
+    init(id: String, data: [String: AnyCodable]? = nil, error: ErrorInfo? = nil) {
         self.id = id
-        self.success = success
         self.data = data
         self.error = error
     }

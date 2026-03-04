@@ -77,23 +77,22 @@ class WebViewController: UIViewController, WKNavigationDelegate {
         updateContentInsets()
     }
     
-    /// Update webview content insets based on safe area requirements
     func updateContentInsets() {
         let safeInsets = view.safeAreaInsets
-        
+
         let topInset: CGFloat = shouldRespectTopSafeArea ? safeInsets.top : 0
         let bottomInset: CGFloat = shouldRespectBottomSafeArea ? safeInsets.bottom : 0
-        
+
         webView.scrollView.contentInset = UIEdgeInsets(
             top: topInset,
             left: 0,
             bottom: bottomInset,
             right: 0
         )
-        
-        // Also update scroll indicator insets to match
         webView.scrollView.scrollIndicatorInsets = webView.scrollView.contentInset
-        
+
+        SafeAreaService.shared.pushToBridge(bridge)
+
         Orchard.v("[WebViewController] Updated content insets - top: \(topInset), bottom: \(bottomInset)")
     }
     
@@ -101,6 +100,7 @@ class WebViewController: UIViewController, WKNavigationDelegate {
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Orchard.v("[WebView] Page loaded: \(webView.url?.absoluteString ?? "unknown")")
+        updateContentInsets()
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -114,6 +114,7 @@ class WebViewController: UIViewController, WKNavigationDelegate {
     func onWindowFocusChanged(hasFocus: Bool) {
         if hasFocus {
             bridge?.sendToWeb(action: "lifecycle", content: ["event": "focused"])
+            SafeAreaService.shared.pushToBridge(bridge)
         } else {
             bridge?.sendToWeb(action: "lifecycle", content: ["event": "defocused"])
         }

@@ -3,13 +3,13 @@ import Orchard
 
 /// Main tab view with bottom navigation
 struct MainTabView: View {
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var currentBridge: JavaScriptBridge?
     @ObservedObject private var bottomNavService = BottomNavigationService.shared
     @ObservedObject private var topNavService = TopNavigationService.shared
     @ObservedObject private var tabNavService = TabNavigationService.shared
     @ObservedObject private var systemUIState = SystemUIState.shared
     
-    /// Compute which edges should ignore safe area based on navigation visibility
     private var safeAreaEdgesToIgnore: Edge.Set {
         let topInvisible = !topNavService.config.isVisible
         let bottomInvisible = !bottomNavService.config.isVisible
@@ -27,14 +27,11 @@ struct MainTabView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Top Navigation
             TopNavigationView(onBackPressed: {
                 Orchard.v("[MainTabView] Back button pressed")
             })
             
-            // Content
             ZStack {
-                // Tab 1 - Bridge Demo
                 if tabNavService.selectedTab == 0 {
                     WebViewScreen(
                         url: getLocalFileURL(filename: "index.html"),
@@ -49,10 +46,9 @@ struct MainTabView: View {
                     .transition(.opacity)
                 }
                 
-                // Tab 2 - External Website
                 if tabNavService.selectedTab == 1 {
                     WebViewScreen(
-                        url: URL(string: "https://portfolio.kibotu.net/")!,
+                        url: URL(string: "https://kibotu.net/check24/jenkins/safearea/")!,
                         onBridgeReady: { bridge in
                             currentBridge = bridge
                             Orchard.v("[MainTabView] Bridge ready for Tab 2")
@@ -65,13 +61,11 @@ struct MainTabView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // Bottom Navigation
             if bottomNavService.config.isVisible {
                 VStack(spacing: 0) {
                     Divider()
                     
                     HStack(spacing: 0) {
-                        // Tab 1 - Home
                         TabBarItem(
                             icon: "house.fill",
                             label: "Home",
@@ -80,7 +74,6 @@ struct MainTabView: View {
                             tabNavService.switchToTab(0)
                         }
                         
-                        // Tab 2 - Web
                         TabBarItem(
                             icon: "globe",
                             label: "Web",
@@ -90,31 +83,35 @@ struct MainTabView: View {
                         }
                     }
                     .frame(height: 50)
-                    .background(Color(UIColor.systemBackground))
+                    .background(Color.surfaceColor)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .background(Color.slateBackground)
         .edgesIgnoringSafeArea(safeAreaEdgesToIgnore)
         .statusBar(hidden: systemUIState.isStatusBarHidden)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             currentBridge?.notifyLifecycleEvent("focused")
+            SafeAreaService.shared.pushToBridge(currentBridge)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             currentBridge?.notifyLifecycleEvent("defocused")
         }
+        .onChange(of: themeManager.isDarkMode) { isDark in
+            currentBridge?.sendToWeb(action: "themeChanged", content: [
+                "theme": isDark ? "dark" : "light"
+            ])
+        }
     }
     
-    /// Get the URL for a local HTML file in the Resources folder
     private func getLocalFileURL(filename: String) -> URL {
         if let url = Bundle.main.url(forResource: filename.replacingOccurrences(of: ".html", with: ""), withExtension: "html", subdirectory: "Resources") {
             return url
         }
-        // Fallback: try without subdirectory
         return Bundle.main.url(forResource: filename.replacingOccurrences(of: ".html", with: ""), withExtension: "html") ?? URL(string: "about:blank")!
     }
     
-    /// Start simulating push notifications (like in Android sample)
     private func startPushNotificationSimulation(bridge: JavaScriptBridge) {
         Timer.scheduledTimer(withTimeInterval: Double.random(in: 7...15), repeats: true) { _ in
             bridge.sendToWeb(action: "onPushNotification", content: [
@@ -137,11 +134,11 @@ struct TabBarItem: View {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 22))
-                    .foregroundColor(isSelected ? .blue : .gray)
+                    .foregroundColor(isSelected ? .accentBlue : .onSurfaceVariant)
                 
                 Text(label)
                     .font(.system(size: 10))
-                    .foregroundColor(isSelected ? .blue : .gray)
+                    .foregroundColor(isSelected ? .accentBlue : .onSurfaceVariant)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())

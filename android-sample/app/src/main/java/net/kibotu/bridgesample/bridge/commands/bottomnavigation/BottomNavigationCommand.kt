@@ -1,32 +1,17 @@
 package net.kibotu.bridgesample.bridge.commands.bottomnavigation
 
+import net.kibotu.bridgesample.bridge.SafeAreaService
 import net.kibotu.bridgesample.bridge.commands.utils.BridgeParsingUtils
 import net.kibotu.bridgesample.bridge.commands.utils.BridgeResponseUtils
-import de.check24.profis.partner.pluginapi.features.webview.bridge.commands.BridgeCommand
+import net.kibotu.bridgesample.bridge.commands.BridgeCommand
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import timber.log.Timber
 
-/**
- * Controls visibility of app's bottom navigation bar from web content.
- *
- * **Why web needs this:**
- * Bottom navigation is native UI outside WebView. Web needs to control it for:
- * - Full-screen experiences (hide for immersive content)
- * - Flow isolation (hide during checkout/forms to reduce distractions)
- * - Context-specific UI (some web pages are leaf nodes, don't need tab navigation)
- *
- * **Why simple show/hide:**
- * Unlike top navigation, bottom nav rarely needs partial customization.
- * It's either part of the UI (shown) or shouldn't be (hidden). Simple boolean
- * covers all realistic use cases.
- *
- * **Why reactive (StateFlow):**
- * Service uses StateFlow allowing multiple observers to react to visibility
- * changes, enabling coordinated UI updates across native components.
- */
-class BottomNavigationCommand : BridgeCommand {
+class BottomNavigationCommand(
+    private val getBridge: () -> net.kibotu.bridgesample.bridge.JavaScriptBridge?
+) : BridgeCommand {
 
     override val action = "bottomNavigation"
 
@@ -37,6 +22,9 @@ class BottomNavigationCommand : BridgeCommand {
             Timber.i("[handle] isVisible=$isVisible")
 
             BottomNavigationService.setVisible(isVisible == true)
+
+            SafeAreaService.pushTobridge(getBridge())
+
             BridgeResponseUtils.createSuccessResponse()
         } catch (e: Exception) {
             Timber.e(e)

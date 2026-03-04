@@ -1,48 +1,25 @@
 package net.kibotu.bridgesample.bridge.commands
 
+import android.content.Context
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
-import androidx.core.content.getSystemService
+import android.os.VibratorManager
 import net.kibotu.bridgesample.bridge.commands.utils.BridgeParsingUtils
 import net.kibotu.bridgesample.bridge.commands.utils.BridgeResponseUtils
 import com.github.florent37.application.provider.ActivityProvider
 import com.github.florent37.application.provider.application
-import de.check24.profis.partner.pluginapi.features.webview.bridge.commands.BridgeCommand
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import timber.log.Timber
 
-/**
- * Triggers haptic feedback for tactile user interaction feedback.
- *
- * **Why web needs this:**
- * Web's Vibration API is limited/unsupported on many devices. Native haptics provide:
- * - Confirmation feedback for successful actions (button taps, form submissions)
- * - Attention-grabbing for important events (errors, notifications)
- * - Enhanced UX making app feel more responsive and "native"
- *
- * **Why boolean control:**
- * Simple on/off is sufficient for 90% of use cases. Complex vibration patterns
- * can be added later if needed (vibration patterns API).
- *
- * **Why 50ms duration:**
- * Tested sweet spot - noticeable but not annoying. Short enough for quick
- * succession (multiple taps) without overlap discomfort.
- *
- * **Why API level check:**
- * VibrationEffect API was added in API 26 (Oreo). Fallback to deprecated
- * method ensures compatibility with older devices.
- */
 class HapticCommand : BridgeCommand {
 
     override val action = "haptic"
 
     override suspend fun handle(content: Any?): JSONObject =
-        withContext(Dispatchers.Main) @androidx.annotation.RequiresPermission(
-            android.Manifest.permission.VIBRATE
-        ) {
+        withContext(Dispatchers.Main) {
             try {
                 val vibrate = BridgeParsingUtils.parseBoolean(content, "vibrate")
 
@@ -53,18 +30,22 @@ class HapticCommand : BridgeCommand {
                 }
 
                 val context = requireNotNull(ActivityProvider.currentActivity ?: application)
-                val vibrator = context.getSystemService<Vibrator>()
+                val vibrator = getVibrator(context)
                     ?: return@withContext BridgeResponseUtils.createErrorResponse(
                         "VIBRATOR_UNAVAILABLE",
                         "Vibrator service not available"
                     )
 
+                if (!vibrator.hasVibrator()) {
+                    return@withContext BridgeResponseUtils.createErrorResponse(
+                        "VIBRATOR_UNAVAILABLE",
+                        "Device does not have a vibrator"
+                    )
+                }
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     vibrator.vibrate(
-                        VibrationEffect.createOneShot(
-                            50,
-                            VibrationEffect.DEFAULT_AMPLITUDE
-                        )
+                        VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
                     )
                 } else {
                     @Suppress("DEPRECATION")
@@ -80,5 +61,15 @@ class HapticCommand : BridgeCommand {
                 )
             }
         }
+
+    private fun getVibrator(context: Context): Vibrator? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val manager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            manager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+    }
 }
 

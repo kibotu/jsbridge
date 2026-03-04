@@ -13,4 +13,6 @@ object BottomNavigationService {
     fun setVisible(visible: Boolean) {
         isVisible.value = visible
     }
+
+    fun currentVisibility(): Boolean = isVisible.value
 }

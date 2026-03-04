@@ -1,36 +1,17 @@
 package net.kibotu.bridgesample.bridge.commands.topnavigation
 
+import net.kibotu.bridgesample.bridge.SafeAreaService
 import net.kibotu.bridgesample.bridge.commands.utils.BridgeParsingUtils
 import net.kibotu.bridgesample.bridge.commands.utils.BridgeResponseUtils
-import de.check24.profis.partner.pluginapi.features.webview.bridge.commands.BridgeCommand
+import net.kibotu.bridgesample.bridge.commands.BridgeCommand
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import timber.log.Timber
 
-/**
- * Configures app's top toolbar/ActionBar appearance from web content.
- *
- * **Why web needs this:**
- * Native toolbar is outside WebView's DOM - web cannot control it directly.
- * This enables web to:
- * - Show/hide toolbar based on scroll or content type
- * - Set page-specific titles
- * - Control back button visibility (navigation affordance)
- * - Customize branding (logo vs title)
- *
- * **Why so many options:**
- * Different web pages have different toolbar needs:
- * - Landing pages: Logo, no back button
- * - Detail pages: Title with back button
- * - Full-screen content: Hidden toolbar
- * - Branded sections: Logo + profile widget
- *
- * **Why drawBehindStatusBar when hidden:**
- * When toolbar hides, content should expand into status bar area (immersive).
- * Prevents awkward gap at top of screen.
- */
-class TopNavigationCommand : BridgeCommand {
+class TopNavigationCommand(
+    private val getBridge: () -> net.kibotu.bridgesample.bridge.JavaScriptBridge?
+) : BridgeCommand {
 
     override val action = "topNavigation"
 
@@ -57,6 +38,9 @@ class TopNavigationCommand : BridgeCommand {
                     drawBehindStatusBar = isVisible == false
                 )
             )
+
+            SafeAreaService.pushTobridge(getBridge())
+
             BridgeResponseUtils.createSuccessResponse()
         } catch (e: Exception) {
             Timber.e(e)
