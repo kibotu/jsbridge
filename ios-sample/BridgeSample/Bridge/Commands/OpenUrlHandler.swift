@@ -24,20 +24,15 @@ import UIKit
 class OpenUrlHandler: BridgeCommand {
     let actionName = "openUrl"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let urlString = content?["url"] as? String,
               let url = URL(string: urlString) else {
-            completion(.failure(.invalidParameter("url")))
-            return
+            throw BridgeError.invalidParameter("url")
         }
         
-        DispatchQueue.main.async {
-            UIApplication.shared.open(url)
-            completion(.success(nil))
-        }
+        await UIApplication.shared.open(url)
+        return nil
     }
 }
 

@@ -13,22 +13,15 @@ import Foundation
 class RemoveSecureDataHandler: BridgeCommand {
     let actionName = "removeSecureData"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let key = content?["key"] as? String else {
-            completion(.failure(.invalidParameter("key")))
-            return
+            throw BridgeError.invalidParameter("key")
         }
         
-        let success = KeychainHelper.delete(key: key)
-        
-        if success {
-            completion(.success(nil))
-        } else {
-            completion(.failure(.internalError("Failed to remove from keychain")))
+        guard KeychainHelper.delete(key: key) else {
+            throw BridgeError.internalError("Failed to remove from keychain")
         }
+        return nil
     }
 }
 

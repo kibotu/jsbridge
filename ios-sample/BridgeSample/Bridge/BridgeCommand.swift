@@ -20,18 +20,14 @@ protocol BridgeCommand {
     /// here maintains the 1:1 mapping between JS and native code.
     var actionName: String { get }
     
-    /// Handle the command with the given content
+    /// Handle the command with the given content.
     ///
-    /// **Why async completion?** Native operations (network, storage, UI) are often asynchronous.
-    /// The completion handler allows the bridge to wait for results before responding to JavaScript.
+    /// Throw `BridgeError` for expected failures (invalid parameters, missing data).
+    /// Return nil for fire-and-forget commands that don't need a response.
     ///
-    /// - Parameters:
-    ///   - content: Optional dictionary of parameters from JavaScript
-    ///   - completion: Callback with result or error to send back to JavaScript
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    )
+    /// - Parameter content: Optional dictionary of parameters from JavaScript
+    /// - Returns: Response dictionary for web, or nil for fire-and-forget
+    func handle(content: [String: Any]?) async throws -> [String: Any]?
 }
 
 /// Errors that can occur during bridge command handling

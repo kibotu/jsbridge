@@ -16,20 +16,15 @@ import UIKit
 class HapticHandler: BridgeCommand {
     let actionName = "haptic"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let vibrate = content?["vibrate"] as? Bool, vibrate else {
-            completion(.success(nil))
-            return
+            return nil
         }
         
-        DispatchQueue.main.async {
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            generator.impactOccurred()
-            completion(.success(nil))
-        }
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        return nil
     }
 }
 

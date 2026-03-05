@@ -9,22 +9,15 @@ class BottomNavigationHandler: BridgeCommand {
         self.bridge = bridge
     }
 
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let isVisible = content?["isVisible"] as? Bool else {
-            completion(.failure(.invalidParameter("isVisible")))
-            return
+            throw BridgeError.invalidParameter("isVisible")
         }
 
-        DispatchQueue.main.async { [weak self] in
-            BottomNavigationService.shared.setVisible(isVisible)
-
-            SafeAreaService.shared.pushToBridge(self?.bridge)
-
-            completion(.success(nil))
-        }
+        BottomNavigationService.shared.setVisible(isVisible)
+        SafeAreaService.shared.pushToBridge(bridge)
+        return nil
     }
 }
 

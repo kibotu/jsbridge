@@ -36,23 +36,17 @@ class SystemUIState: ObservableObject {
 class SystemBarsHandler: BridgeCommand {
     let actionName = "systemBars"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let content = content, let showStatusBar = content["showStatusBar"] as? Bool else {
-            completion(.failure(.invalidParameter("showStatusBar")))
-            return
+            throw BridgeError.invalidParameter("showStatusBar")
         }
         
         Orchard.v("[Bridge] System bars command: showStatusBar=\(showStatusBar)")
         
-        DispatchQueue.main.async {
-            // Invert the value: showStatusBar=true means hide=false
-            withAnimation(.easeInOut(duration: 0.2)) {
-                 SystemUIState.shared.isStatusBarHidden = !showStatusBar
-             }
-            completion(.success(nil))
+        withAnimation(.easeInOut(duration: 0.2)) {
+            SystemUIState.shared.isStatusBarHidden = !showStatusBar
         }
+        return nil
     }
 }

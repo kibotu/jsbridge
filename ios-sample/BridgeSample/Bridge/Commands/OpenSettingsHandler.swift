@@ -22,32 +22,21 @@ import Orchard
 class OpenSettingsHandler: BridgeCommand {
     let actionName = "openSettings"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
-        DispatchQueue.main.async {
-            guard let settingsUrl = URL(string: UIApplication.openSettingsURLString) else {
-                Orchard.e("Could not create settings URL")
-                completion(.failure(.internalError("Could not create settings URL")))
-                return
-            }
-            
-            guard UIApplication.shared.canOpenURL(settingsUrl) else {
-                Orchard.e("Cannot open settings URL")
-                completion(.failure(.internalError("Cannot open settings URL")))
-                return
-            }
-            
-            UIApplication.shared.open(settingsUrl) { success in
-                if success {
-                    completion(.success(nil))
-                } else {
-                    Orchard.e("Failed to open settings")
-                    completion(.failure(.internalError("Failed to open settings")))
-                }
-            }
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
+        guard let settingsUrl = URL(string: UIApplication.openSettingsURLString) else {
+            throw BridgeError.internalError("Could not create settings URL")
         }
+        
+        guard UIApplication.shared.canOpenURL(settingsUrl) else {
+            throw BridgeError.internalError("Cannot open settings URL")
+        }
+        
+        let success = await UIApplication.shared.open(settingsUrl)
+        guard success else {
+            throw BridgeError.internalError("Failed to open settings")
+        }
+        return nil
     }
 }
 

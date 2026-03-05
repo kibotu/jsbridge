@@ -20,19 +20,14 @@ import UIKit
 class CopyToClipboardHandler: BridgeCommand {
     let actionName = "copyToClipboard"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let text = content?["text"] as? String else {
-            completion(.failure(.invalidParameter("text")))
-            return
+            throw BridgeError.invalidParameter("text")
         }
         
-        DispatchQueue.main.async {
-            UIPasteboard.general.string = text
-            completion(.success(nil))
-        }
+        UIPasteboard.general.string = text
+        return nil
     }
 }
 

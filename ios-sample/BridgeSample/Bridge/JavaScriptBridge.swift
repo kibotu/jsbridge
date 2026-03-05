@@ -89,6 +89,7 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         register(handler: GetInsetsHandler(viewController: viewController))
         register(handler: HapticHandler())
         register(handler: CopyToClipboardHandler())
+        register(handler: RequestPermissionsHandler())
 
         // Storage
         register(handler: SaveSecureDataHandler())
@@ -187,12 +188,15 @@ class JavaScriptBridge: NSObject, WKScriptMessageHandler {
             return
         }
 
-        handler.handle(content: content) { [weak self] result in
-            switch result {
-            case .success(let responseData):
-                self?.sendSuccess(id: message.id, data: responseData)
-            case .failure(let error):
-                self?.sendError(id: message.id, error: error)
+        let messageId = message.id
+        Task { [weak self] in
+            do {
+                let responseData = try await handler.handle(content: content)
+                self?.sendSuccess(id: messageId, data: responseData)
+            } catch let error as BridgeError {
+                self?.sendError(id: messageId, error: error)
+            } catch {
+                self?.sendError(id: messageId, error: .internalError(error.localizedDescription))
             }
         }
     }

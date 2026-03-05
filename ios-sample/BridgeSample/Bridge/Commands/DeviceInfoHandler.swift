@@ -15,20 +15,14 @@ import UIKit
 class DeviceInfoHandler: BridgeCommand {
     let actionName = "deviceInfo"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
-        let deviceInfo: [String: Any] = [
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
+        return [
             "platform": "iOS",
-            "osVersion": UIDevice.current.systemVersion, // Runtime OS version (e.g., "17.0")
-            "sdkVersion": getSDKVersion(), // Compile-time SDK version
+            "osVersion": UIDevice.current.systemVersion,
+            "sdkVersion": getSDKVersion(),
             "manufacturer": "Apple",
             "model": getDeviceIdentifier(),
-//            "appVersion": Bundle.main.shortVersion ?? "Unknown"
         ]
-        
-        completion(.success(deviceInfo))
     }
     
     /// Returns the SDK version (deployment target) from the app bundle

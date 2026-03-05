@@ -19,6 +19,8 @@ import net.kibotu.bridgesample.bridge.commands.systembars.SystemBarsCommand
 import net.kibotu.bridgesample.bridge.commands.topnavigation.TopNavigationCommand
 import net.kibotu.bridgesample.bridge.commands.utils.BridgeResponseUtils
 import net.kibotu.bridgesample.bridge.commands.refresh.RefreshCommand
+import net.kibotu.bridgesample.bridge.commands.tracking.TrackEventCommand
+import net.kibotu.bridgesample.bridge.commands.tracking.TrackScreenCommand
 import timber.log.Timber
 
 /**
@@ -65,6 +67,8 @@ class DefaultBridgeMessageHandler(
         SaveSecureDataCommand(),
         LoadSecureDataCommand(),
         RemoveSecureDataCommand(),
+        TrackEventCommand(),
+        TrackScreenCommand(),
         RefreshCommand()
     )
 

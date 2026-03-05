@@ -21,25 +21,18 @@ import Orchard
 class TrackEventHandler: BridgeCommand {
     let actionName = "trackEvent"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let event = content?["event"] as? String else {
-            completion(.failure(.invalidParameter("event")))
-            return
+            throw BridgeError.invalidParameter("event")
         }
         
         let params = content?["params"] as? [String: Any] ?? [:]
         
-//        // Track event using C24Tracker (forwards to Firebase Analytics)
         let trackingEvent = BridgeTrackingEvent(name: event, parameters: params)
         Orchard.v("\(trackingEvent)")
-        
         Orchard.v("[Bridge] Track event: \(event) with params: \(params)")
         
-        // Fire-and-forget: immediately return success
-        completion(.success(nil))
+        return nil
     }
 }
 

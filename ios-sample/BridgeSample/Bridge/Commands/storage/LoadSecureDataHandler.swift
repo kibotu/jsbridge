@@ -15,19 +15,15 @@ import Foundation
 class LoadSecureDataHandler: BridgeCommand {
     let actionName = "loadSecureData"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let key = content?["key"] as? String else {
-            completion(.failure(.invalidParameter("key")))
-            return
+            throw BridgeError.invalidParameter("key")
         }
         
         if let value = KeychainHelper.load(key: key) {
-            completion(.success(["value": value]))
+            return ["value": value]
         } else {
-            completion(.success(["value": NSNull()]))
+            return ["value": NSNull()]
         }
     }
 }

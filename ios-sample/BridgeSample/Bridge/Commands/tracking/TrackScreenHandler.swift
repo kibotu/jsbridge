@@ -19,37 +19,23 @@ import Orchard
 class TrackScreenHandler: BridgeCommand {
     let actionName = "trackScreen"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let screenName = content?["screenName"] as? String else {
-            completion(.failure(.invalidParameter("screenName")))
-            return
+            throw BridgeError.invalidParameter("screenName")
         }
         
         let screenClass = content?["screenClass"] as? String
         
-        // Build parameters following Firebase Analytics conventions
-        var parameters: [String: Any] = [
-            "screen_name": screenName
-        ]
-        
+        var parameters: [String: Any] = ["screen_name": screenName]
         if let screenClass = screenClass {
             parameters["screen_class"] = screenClass
         }
         
-        // Track screen view using C24Tracker (forwards to Firebase Analytics)
-        let trackingEvent = BridgeScreenTrackingEvent(
-            name: "screen_view",
-            parameters: parameters
-        )
+        let trackingEvent = BridgeScreenTrackingEvent(name: "screen_view", parameters: parameters)
         Orchard.v("\(trackingEvent)")
-        
         Orchard.v("[Bridge] Track screen: \(screenName), class: \(String(describing: screenClass))")
         
-        // Fire-and-forget: immediately return success
-        completion(.success(nil))
+        return nil
     }
 }
 

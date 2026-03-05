@@ -412,13 +412,14 @@ jsbridge.on((msg) => {
   console.log(action, content);
 });
 
-const info = await jsbridge.call({ data: { action: 'deviceInfo' } });</textarea></div>
+const info = await jsbridge.call('deviceInfo');</textarea></div>
 
             <h3 style="margin-top:12px; font-size:14px; color:var(--text-primary);">API</h3>
             <ul class="doc-list">
                 <li><strong>jsbridge.ready(): Promise&lt;void&gt;</strong></li>
-                <li><strong>jsbridge.call(msg, opts?): Promise&lt;any&gt;</strong></li>
+                <li><strong>jsbridge.call(action, content?, opts?): Promise&lt;any&gt;</strong></li>
                 <li><strong>jsbridge.on(handler)</strong> / <strong>jsbridge.off(handler)</strong></li>
+                <li><strong>jsbridge.cancelAll()</strong></li>
                 <li><strong>jsbridge.setDebug(bool)</strong></li>
                 <li><strong>jsbridge.setMockHandler(fn | null)</strong></li>
                 <li><strong>jsbridge.platform</strong> — <code class="badge">'android' | 'ios' | 'desktop'</code></li>
@@ -457,15 +458,15 @@ const info = await jsbridge.call({ data: { action: 'deviceInfo' } });</textarea>
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Device info
-const info = await jsbridge.call({ data: { action: 'deviceInfo' } });
+const info = await jsbridge.call('deviceInfo');
 // → { platform, osVersion, model, appVersion }
 
 // Network status
-const net = await jsbridge.call({ data: { action: 'networkState' } });
+const net = await jsbridge.call('networkState');
 // → { connected: true, type: 'wifi' }
 
 // Open native settings
-await jsbridge.call({ data: { action: 'openSettings' } });</textarea></div>
+await jsbridge.call('openSettings');</textarea></div>
         </div>
     </details>
 </div>
@@ -499,7 +500,7 @@ body {
   padding-bottom: var(--bridge-inset-bottom, env(safe-area-inset-bottom, 0px));
 }</textarea></div>
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">/* JS: query on demand */
-const insets = await jsbridge.call({ data: { action: 'getInsets' } });
+const insets = await jsbridge.call('getInsets');
 // { statusBar: { height, visible }, systemNavigation: { ... }, safeArea: { top, right, bottom, left } }</textarea></div>
         </div>
     </details>
@@ -516,17 +517,17 @@ const insets = await jsbridge.call({ data: { action: 'getInsets' } });
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Toast
-await jsbridge.call({ data: { action: 'showToast', content: {
+await jsbridge.call('showToast', {
   message: 'Hello!',
   duration: 'short' // 'short' | 'long'
-}}});
+});
 
 // Alert with buttons
-const result = await jsbridge.call({ data: { action: 'showAlert', content: {
+const result = await jsbridge.call('showAlert', {
   title: 'Confirm',
   message: 'Are you sure?',
   buttons: ['OK', 'Cancel']
-}}});
+});
 // → { buttonIndex: 0 }</textarea></div>
         </div>
     </details>
@@ -546,19 +547,17 @@ const result = await jsbridge.call({ data: { action: 'showAlert', content: {
     <details class="collapsible" style="margin-top:12px;">
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call({ data: { action: 'topNavigation', content: {
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call('topNavigation', {
   isVisible: true,
   title: 'Page Title',
   showUpArrow: false,
   showDivider: true,
   showLogo: false,
   showProfileIconWidget: false
-}}});
+});
 
 // Hide toolbar
-await jsbridge.call({ data: { action: 'topNavigation', content: {
-  isVisible: false
-}}});</textarea></div>
+await jsbridge.call('topNavigation', { isVisible: false });</textarea></div>
         </div>
     </details>
 </div>
@@ -575,14 +574,10 @@ await jsbridge.call({ data: { action: 'topNavigation', content: {
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Show tab bar
-await jsbridge.call({ data: { action: 'bottomNavigation', content: {
-  isVisible: true
-}}});
+await jsbridge.call('bottomNavigation', { isVisible: true });
 
 // Hide tab bar
-await jsbridge.call({ data: { action: 'bottomNavigation', content: {
-  isVisible: false
-}}});</textarea></div>
+await jsbridge.call('bottomNavigation', { isVisible: false });</textarea></div>
         </div>
     </details>
 </div>
@@ -599,16 +594,16 @@ await jsbridge.call({ data: { action: 'bottomNavigation', content: {
     <details class="collapsible" style="margin-top:12px;">
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call({ data: { action: 'systemBars', content: {
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call('systemBars', {
   showStatusBar: true,
   showSystemNavigation: true
-}}});
+});
 
 // Immersive mode
-await jsbridge.call({ data: { action: 'systemBars', content: {
+await jsbridge.call('systemBars', {
   showStatusBar: false,
   showSystemNavigation: false
-}}});</textarea></div>
+});</textarea></div>
         </div>
     </details>
 </div>
@@ -623,9 +618,7 @@ await jsbridge.call({ data: { action: 'systemBars', content: {
     <details class="collapsible" style="margin-top:12px;">
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call({ data: { action: 'haptic', content: {
-  vibrate: true
-}}});</textarea></div>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call('haptic', { vibrate: true });</textarea></div>
         </div>
     </details>
 </div>
@@ -642,15 +635,13 @@ await jsbridge.call({ data: { action: 'systemBars', content: {
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Load URL in WebView
-await jsbridge.call({ data: { action: 'navigation', content: {
+await jsbridge.call('navigation', {
   url: 'https://example.com',
   external: false // true = open in browser
-}}});
+});
 
 // Go back
-await jsbridge.call({ data: { action: 'navigation', content: {
-  goBack: true
-}}});</textarea></div>
+await jsbridge.call('navigation', { goBack: true });</textarea></div>
         </div>
     </details>
 </div>
@@ -664,9 +655,7 @@ await jsbridge.call({ data: { action: 'navigation', content: {
     <details class="collapsible" style="margin-top:12px;">
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call({ data: { action: 'copyToClipboard', content: {
-  text: 'Text to copy'
-}}});</textarea></div>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">await jsbridge.call('copyToClipboard', { text: 'Text to copy' });</textarea></div>
         </div>
     </details>
 </div>
@@ -711,9 +700,7 @@ jsbridge.on((msg) => {
 });
 
 // Tell native to refresh (web → native):
-await jsbridge.call({ data: { action: 'refresh', content: {
-  command: 'refresh'
-}}});</textarea></div>
+await jsbridge.call('refresh', { command: 'refresh' });</textarea></div>
         </div>
     </details>
 </div>
@@ -730,21 +717,19 @@ await jsbridge.call({ data: { action: 'refresh', content: {
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Save (Android: EncryptedSharedPreferences, iOS: Keychain)
-await jsbridge.call({ data: { action: 'saveSecureData', content: {
+await jsbridge.call('saveSecureData', {
   key: 'auth_token',
   value: 'eyJhbGci...'
-}}});
+});
 
 // Load
-const result = await jsbridge.call({ data: { action: 'loadSecureData', content: {
+const result = await jsbridge.call('loadSecureData', {
   key: 'auth_token'
-}}});
+});
 // → { value: 'eyJhbGci...' }
 
 // Remove
-await jsbridge.call({ data: { action: 'removeSecureData', content: {
-  key: 'auth_token'
-}}});</textarea></div>
+await jsbridge.call('removeSecureData', { key: 'auth_token' });</textarea></div>
         </div>
     </details>
 </div>
@@ -760,15 +745,15 @@ await jsbridge.call({ data: { action: 'removeSecureData', content: {
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Fire & forget — no await needed
-jsbridge.call({ data: { action: 'trackEvent', content: {
+jsbridge.call('trackEvent', {
   event: 'button_click',
   params: { screen: 'checkout', item: 'submit' }
-}}});
+});
 
-jsbridge.call({ data: { action: 'trackScreen', content: {
+jsbridge.call('trackScreen', {
   screenName: 'Checkout',
   screenClass: 'CheckoutScreen'
-}}});</textarea></div>
+});</textarea></div>
         </div>
     </details>
 </div>
@@ -940,9 +925,7 @@ console.log(jsbridge.schemaVersion); // → 1
 
     // -- actions ---------------------------------------------------------
     async function call(action, content) {
-        var msg = { data: { action: action } };
-        if (content) msg.data.content = content;
-        return bridge.call(msg);
+        return bridge.call(action, content);
     }
 
     function deviceInfoRow(label, value) {

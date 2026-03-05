@@ -26,30 +26,25 @@ class ShowAlertHandler: BridgeCommand {
         self.viewController = viewController
     }
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let title = content?["title"] as? String,
               let message = content?["message"] as? String else {
-            completion(.failure(.invalidParameter("title or message")))
-            return
+            throw BridgeError.invalidParameter("title or message")
         }
         
-        DispatchQueue.main.async { [weak self] in
-            let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-            
-            if let buttons = content?["buttons"] as? [String] {
-                for buttonTitle in buttons {
-                    alert.addAction(UIAlertAction(title: buttonTitle, style: .default))
-                }
-            } else {
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        
+        if let buttons = content?["buttons"] as? [String] {
+            for buttonTitle in buttons {
+                alert.addAction(UIAlertAction(title: buttonTitle, style: .default))
             }
-            
-            self?.viewController?.present(alert, animated: true)
-            completion(.success(nil))
+        } else {
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
         }
+        
+        viewController?.present(alert, animated: true)
+        return nil
     }
 }
 

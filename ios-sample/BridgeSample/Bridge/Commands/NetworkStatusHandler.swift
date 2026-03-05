@@ -27,32 +27,25 @@ import Network
 class NetworkStatusHandler: BridgeCommand {
     let actionName = "networkState"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
-        // Create a path monitor to check current network status
-        let monitor = NWPathMonitor()
-        let queue = DispatchQueue(label: "com.check24.networkstatus.monitor")
-        
-        monitor.pathUpdateHandler = { path in
-            let isConnected = path.status == .satisfied
-            let connectionType = self.determineConnectionType(from: path)
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
+        return await withCheckedContinuation { continuation in
+            let monitor = NWPathMonitor()
+            let queue = DispatchQueue(label: "com.check24.networkstatus.monitor")
             
-            let status: [String: Any] = [
-                "connected": isConnected,
-                "type": connectionType
-            ]
+            monitor.pathUpdateHandler = { [weak self] path in
+                let isConnected = path.status == .satisfied
+                let connectionType = self?.determineConnectionType(from: path) ?? "unknown"
+                
+                monitor.cancel()
+                
+                continuation.resume(returning: [
+                    "connected": isConnected,
+                    "type": connectionType
+                ])
+            }
             
-            // Stop monitoring after getting the status
-            monitor.cancel()
-            
-            // Return the result
-            completion(.success(status))
+            monitor.start(queue: queue)
         }
-        
-        // Start monitoring and immediately get the current status
-        monitor.start(queue: queue)
     }
     
     /// Determines the connection type from the network path

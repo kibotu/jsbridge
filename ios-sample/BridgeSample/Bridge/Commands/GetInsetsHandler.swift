@@ -16,47 +16,39 @@ class GetInsetsHandler: BridgeCommand {
         self.viewController = viewController
     }
 
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
-        DispatchQueue.main.async { [weak self] in
-            guard let vc = self?.viewController else {
-                completion(.failure(.internalError("No view controller")))
-                return
-            }
-
-            let windowScene = vc.view.window?.windowScene
-                ?? UIApplication.shared.connectedScenes
-                    .compactMap({ $0 as? UIWindowScene }).first
-
-            let statusBarHeight = windowScene?.statusBarManager?.statusBarFrame.height ?? 0
-            let isStatusBarHidden = windowScene?.statusBarManager?.isStatusBarHidden ?? false
-
-            let rootSafeArea = vc.view.window?.safeAreaInsets ?? vc.view.safeAreaInsets
-
-            let result: [String: Any] = [
-                "statusBar": [
-                    "height": Int(statusBarHeight),
-                    "visible": !isStatusBarHidden
-                ],
-                "systemNavigation": [
-                    "height": Int(rootSafeArea.bottom),
-                    "visible": rootSafeArea.bottom > 0
-                ],
-                "keyboard": [
-                    "height": 0,
-                    "visible": false
-                ],
-                "safeArea": [
-                    "top": Int(rootSafeArea.top),
-                    "right": Int(rootSafeArea.right),
-                    "bottom": Int(rootSafeArea.bottom),
-                    "left": Int(rootSafeArea.left)
-                ]
-            ]
-
-            completion(.success(result))
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
+        guard let vc = viewController else {
+            throw BridgeError.internalError("No view controller")
         }
+
+        let windowScene = vc.view.window?.windowScene
+            ?? UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene }).first
+
+        let statusBarHeight = windowScene?.statusBarManager?.statusBarFrame.height ?? 0
+        let isStatusBarHidden = windowScene?.statusBarManager?.isStatusBarHidden ?? false
+        let rootSafeArea = vc.view.window?.safeAreaInsets ?? vc.view.safeAreaInsets
+
+        return [
+            "statusBar": [
+                "height": Int(statusBarHeight),
+                "visible": !isStatusBarHidden
+            ],
+            "systemNavigation": [
+                "height": Int(rootSafeArea.bottom),
+                "visible": rootSafeArea.bottom > 0
+            ],
+            "keyboard": [
+                "height": 0,
+                "visible": false
+            ],
+            "safeArea": [
+                "top": Int(rootSafeArea.top),
+                "right": Int(rootSafeArea.right),
+                "bottom": Int(rootSafeArea.bottom),
+                "left": Int(rootSafeArea.left)
+            ]
+        ]
     }
 }

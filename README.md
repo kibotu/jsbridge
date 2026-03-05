@@ -11,7 +11,7 @@ A unified, promise-based JavaScript bridge for bidirectional communication betwe
 ```js
 await jsbridge.ready();
 
-const info = await jsbridge.call({ data: { action: 'deviceInfo' } });
+const info = await jsbridge.call('deviceInfo');
 console.log(info.platform, info.model);
 
 jsbridge.on((msg) => {
@@ -27,9 +27,10 @@ That's the whole API. One method to call native (`call`), one to listen (`on`). 
 | Method | Description |
 |--------|-------------|
 | `jsbridge.ready()` | Returns a Promise that resolves when the bridge is initialized. Call this first. |
-| `jsbridge.call(msg, opts?)` | Sends `{ data: { action, content? } }` to native. Returns a Promise with the response. |
+| `jsbridge.call(action, content?, opts?)` | Sends a request to native. Returns a Promise with the response. |
 | `jsbridge.on(fn)` | Registers a handler for native-to-web messages. Supports multiple handlers. |
 | `jsbridge.off(fn)` | Removes a previously registered handler. |
+| `jsbridge.cancelAll()` | Rejects all pending promises and clears timeouts. Useful for navigation teardown. |
 | `jsbridge.setDebug(bool)` | Enables verbose console logging. |
 | `jsbridge.setMockHandler(fn)` | Registers a mock for desktop browser testing. |
 | `jsbridge.platform` | `'android'` \| `'ios'` \| `'desktop'` (read-only) |
@@ -38,7 +39,11 @@ That's the whole API. One method to call native (`call`), one to listen (`on`). 
 
 ### Message Shape
 
-Every call uses the same shape. Learn it once, use it forever:
+```js
+await jsbridge.call('actionName', { key: 'value' }, { timeout: 5000 });
+```
+
+`call()` also accepts the full message object for backward compatibility:
 
 ```js
 await jsbridge.call({
@@ -55,53 +60,53 @@ await jsbridge.call({
 
 ```js
 // Device info
-const info = await jsbridge.call({ data: { action: 'deviceInfo' } });
+const info = await jsbridge.call('deviceInfo');
 // → { platform, osVersion, model, appVersion, ... }
 
 // Network status
-const net = await jsbridge.call({ data: { action: 'networkState' } });
+const net = await jsbridge.call('networkState');
 // → { connected: true, type: 'wifi' }
 
 // System settings
-await jsbridge.call({ data: { action: 'openSettings' } });
+await jsbridge.call('openSettings');
 
 // Safe area insets (prefer CSS custom properties -- see Safe Area section)
-const insets = await jsbridge.call({ data: { action: 'getInsets' } });
+const insets = await jsbridge.call('getInsets');
 // → { statusBar: { height, visible }, systemNavigation: {...}, keyboard: {...}, safeArea: { top, right, bottom, left } }
 ```
 
 #### UI
 
 ```js
-await jsbridge.call({ data: { action: 'showToast', content: { message: 'Hey!', duration: 'short' } } });
-await jsbridge.call({ data: { action: 'showAlert', content: { title: 'Hi', message: 'Hello', buttons: ['OK', 'Cancel'] } } });
-await jsbridge.call({ data: { action: 'haptic', content: { vibrate: true } } });
-await jsbridge.call({ data: { action: 'copyToClipboard', content: { text: 'copied!' } } });
+await jsbridge.call('showToast', { message: 'Hey!', duration: 'short' });
+await jsbridge.call('showAlert', { title: 'Hi', message: 'Hello', buttons: ['OK', 'Cancel'] });
+await jsbridge.call('haptic', { vibrate: true });
+await jsbridge.call('copyToClipboard', { text: 'copied!' });
 ```
 
 #### Navigation
 
 ```js
 // Top navigation bar
-await jsbridge.call({ data: { action: 'topNavigation', content: { isVisible: true, title: 'Home', showUpArrow: false } } });
+await jsbridge.call('topNavigation', { isVisible: true, title: 'Home', showUpArrow: false });
 
 // Bottom navigation bar
-await jsbridge.call({ data: { action: 'bottomNavigation', content: { isVisible: false } } });
+await jsbridge.call('bottomNavigation', { isVisible: false });
 
 // System bars (Android only -- iOS ignores this gracefully)
-await jsbridge.call({ data: { action: 'systemBars', content: { showStatusBar: false, showSystemNavigation: false } } });
+await jsbridge.call('systemBars', { showStatusBar: false, showSystemNavigation: false });
 
 // URL navigation
-await jsbridge.call({ data: { action: 'navigation', content: { url: 'https://example.com', external: true } } });
-await jsbridge.call({ data: { action: 'navigation', content: { goBack: true } } });
+await jsbridge.call('navigation', { url: 'https://example.com', external: true });
+await jsbridge.call('navigation', { goBack: true });
 ```
 
 #### Secure Storage
 
 ```js
-await jsbridge.call({ data: { action: 'saveSecureData', content: { key: 'token', value: 'abc123' } } });
-const { value } = await jsbridge.call({ data: { action: 'loadSecureData', content: { key: 'token' } } });
-await jsbridge.call({ data: { action: 'removeSecureData', content: { key: 'token' } } });
+await jsbridge.call('saveSecureData', { key: 'token', value: 'abc123' });
+const { value } = await jsbridge.call('loadSecureData', { key: 'token' });
+await jsbridge.call('removeSecureData', { key: 'token' });
 ```
 
 Backed by Keychain (iOS) and EncryptedSharedPreferences (Android).
@@ -110,7 +115,7 @@ Backed by Keychain (iOS) and EncryptedSharedPreferences (Android).
 
 ```js
 // Enable lifecycle events from native
-await jsbridge.call({ data: { action: 'lifecycleEvents', content: { enable: true } } });
+await jsbridge.call('lifecycleEvents', { enable: true });
 
 // Listen for native-pushed events
 jsbridge.on((msg) => {
@@ -125,8 +130,8 @@ jsbridge.on((msg) => {
 Don't `await` these -- no response needed, zero latency:
 
 ```js
-jsbridge.call({ data: { action: 'trackEvent', content: { event: 'button_click', params: { screen: 'home' } } } });
-jsbridge.call({ data: { action: 'trackScreen', content: { screenName: 'Home' } } });
+jsbridge.call('trackEvent', { event: 'button_click', params: { screen: 'home' } });
+jsbridge.call('trackScreen', { screenName: 'Home' });
 ```
 
 ### Safe Area / Insets
@@ -162,13 +167,17 @@ The `index.html` demo page does this automatically.
 ### TypeScript
 
 ```typescript
+interface CallOptions { timeout?: number; version?: number; }
+
 interface Bridge {
   schemaVersion: number;
   platform: 'android' | 'ios' | 'desktop';
   ready(): Promise<void>;
-  call<T = unknown>(msg: { data: { action: string; content?: unknown } }, opts?: { timeout?: number }): Promise<T>;
+  call<T = unknown>(action: string, content?: unknown, opts?: CallOptions): Promise<T>;
+  call<T = unknown>(msg: { data: { action: string; content?: unknown } }, opts?: CallOptions): Promise<T>;
   on(handler: (msg: { data: { action: string; content?: unknown } }) => void): void;
   off(handler: Function): void;
+  cancelAll(): void;
   setDebug(enabled: boolean): void;
   setMockHandler(handler: Function | null): void;
   getStats(): { pendingRequests: number; schemaVersion: number; platform: string; handlers: number; debugEnabled: boolean };
@@ -207,6 +216,7 @@ declare global { interface Window { jsbridge: Bridge } }
 | `saveSecureData` | ✅ | ✅ |
 | `loadSecureData` | ✅ | ✅ |
 | `removeSecureData` | ✅ | ✅ |
+| `requestPermissions` | ✅ | ✅ |
 | `trackEvent` | ✅ | ✅ |
 | `trackScreen` | ✅ | ✅ |
 
@@ -214,7 +224,7 @@ declare global { interface Window { jsbridge: Bridge } }
 
 ```js
 try {
-  const info = await jsbridge.call({ data: { action: 'deviceInfo' } }, { timeout: 5000 });
+  const info = await jsbridge.call('deviceInfo', null, { timeout: 5000 });
 } catch (e) {
   if (e.message.includes('timeout')) console.warn('Native not responding');
   else console.error(e.code, e.message);
@@ -229,7 +239,7 @@ Simple integer, auto-attached to every message. Native silently ignores messages
 
 ```js
 if (jsbridge.schemaVersion >= 2) {
-  await jsbridge.call({ data: { action: 'fancyNewThing' } });
+  await jsbridge.call('fancyNewThing');
 } else {
   oldApproach();
 }
@@ -325,9 +335,9 @@ class MyCommand : BridgeCommand {
 // iOS
 class MyHandler: BridgeCommand {
     let actionName = "myAction"
-    func handle(content: [String: Any]?, completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void) {
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         let param = content?["param"] as? String ?? ""
-        completion(.success(["result": "done: \(param)"]))
+        return ["result": "done: \(param)"]
     }
 }
 ```
@@ -350,7 +360,7 @@ register(handler: MyHandler())  // ← done
 **3. Call from web:**
 
 ```js
-const result = await jsbridge.call({ data: { action: 'myAction', content: { param: 'hello' } } });
+const result = await jsbridge.call('myAction', { param: 'hello' });
 ```
 
 You didn't touch the bridge infrastructure, the JS layer, or any other command. That's the beauty of the command pattern.
@@ -459,6 +469,16 @@ Batch with `Promise.all()`. Cache what doesn't change. Don't await what doesn't 
 ---
 
 ## Changelog
+
+### 2.1.0 (2026-03-05)
+
+- `call()` now accepts both `call(action, content?, opts?)` shorthand and `call(msg, opts?)` object form
+- Added `cancelAll()` to reject all pending promises and clean up timeouts
+- Fixed Android error response asymmetry -- command errors now correctly reject promises (aligned with iOS)
+- Added `trackEvent` and `trackScreen` commands on Android
+- Added `requestPermissions` command on iOS
+- Added iOS `BridgeParsingUtils` dictionary extensions for consistent parameter parsing
+- Migrated iOS `BridgeCommand` protocol from completion handlers to `async/await`
 
 ### 2.0.0 (2026-03-04)
 

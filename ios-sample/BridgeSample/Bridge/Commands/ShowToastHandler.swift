@@ -25,29 +25,21 @@ class ShowToastHandler: BridgeCommand {
         self.viewController = viewController
     }
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    @MainActor
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let message = content?["message"] as? String else {
-            completion(.failure(.invalidParameter("message")))
-            return
+            throw BridgeError.invalidParameter("message")
         }
         
-        DispatchQueue.main.async { [weak self] in
-            // Using a simple alert as a toast replacement for iOS
-            // Can be replaced with custom toast implementation without changing the bridge API
-            let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
-            self?.viewController?.present(alert, animated: true)
-            
-            // Auto-dismiss after duration
-            let duration = (content?["duration"] as? String) == "long" ? 3.5 : 2.0
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-                alert.dismiss(animated: true)
-            }
-            
-            completion(.success(nil))
+        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+        viewController?.present(alert, animated: true)
+        
+        let duration = (content?["duration"] as? String) == "long" ? 3.5 : 2.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            alert.dismiss(animated: true)
         }
+        
+        return nil
     }
 }
 

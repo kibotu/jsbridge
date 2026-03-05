@@ -127,15 +127,20 @@ struct JavaScriptBridgeScript {
         schemaVersion: SCHEMA_VERSION,
         ready: function () { return readyPromise; },
         setDebug: function (enabled) { debug = Boolean(enabled); debugLog('Debug ' + (debug ? 'enabled' : 'disabled')); },
-        call: function (message, options) {
-          options = options || {};
+        call: function (actionOrMessage, contentOrOptions, options) {
+          var message; var opts;
+          if (typeof actionOrMessage === 'string') {
+            message = { data: { action: actionOrMessage } };
+            if (contentOrOptions != null) message.data.content = contentOrOptions;
+            opts = options || {};
+          } else { message = actionOrMessage; opts = contentOrOptions || {}; }
           return new Promise(function (resolve, reject) {
             var id;
             try {
               validateMessage(message);
               id = generateId();
-              var timeout = options.timeout != null ? options.timeout : DEFAULT_TIMEOUT;
-              var version = options.version != null ? options.version : SCHEMA_VERSION;
+              var timeout = opts.timeout != null ? opts.timeout : DEFAULT_TIMEOUT;
+              var version = opts.version != null ? opts.version : SCHEMA_VERSION;
               var fullMessage = { version: version, id: id, data: message.data };
               debugLog('Calling native:', fullMessage);
               var timeoutId = setTimeout(function () { cleanupPromise(id); reject(new Error('Request timeout after ' + timeout + 'ms')); }, timeout);
@@ -157,6 +162,13 @@ struct JavaScriptBridgeScript {
           if (handler !== null && typeof handler !== 'function') throw new Error('Mock handler must be a function or null');
           mockHandler = handler;
           if (handler) { _platform = 'desktop'; debugLog('Mock handler set'); }
+        },
+        cancelAll: function () {
+          var ids = Object.keys(pendingPromises);
+          var err = new Error('All pending requests cancelled');
+          err.code = 'CANCELLED';
+          for (var i = 0; i < ids.length; i++) { var entry = pendingPromises[ids[i]]; cleanupPromise(ids[i]); entry.reject(err); }
+          debugLog('Cancelled ' + ids.length + ' pending request(s)');
         },
         getStats: function () {
           return { pendingRequests: Object.keys(pendingPromises).length, schemaVersion: SCHEMA_VERSION, platform: _platform, handlers: messageHandlers.length, debugEnabled: debug };

@@ -23,23 +23,16 @@ import Security
 class SaveSecureDataHandler: BridgeCommand {
     let actionName = "saveSecureData"
     
-    func handle(
-        content: [String: Any]?,
-        completion: @escaping (Result<[String: Any]?, BridgeError>) -> Void
-    ) {
+    func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let key = content?["key"] as? String,
               let value = content?["value"] as? String else {
-            completion(.failure(.invalidParameter("key or value")))
-            return
+            throw BridgeError.invalidParameter("key or value")
         }
         
-        let success = KeychainHelper.save(key: key, value: value)
-        
-        if success {
-            completion(.success(nil))
-        } else {
-            completion(.failure(.internalError("Failed to save to keychain")))
+        guard KeychainHelper.save(key: key, value: value) else {
+            throw BridgeError.internalError("Failed to save to keychain")
         }
+        return nil
     }
 }
 
