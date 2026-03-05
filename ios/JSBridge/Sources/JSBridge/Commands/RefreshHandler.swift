@@ -28,7 +28,7 @@ public class RefreshHandler: BridgeCommand {
 //    @CoreInject var refreshService: RefreshService
     
     public func handle(content: [String: Any]?) async throws -> [String: Any]? {
-//        let appLink = PluginController.createAppLink(from:  "https://experts.check24.de/refresh".url!, source: .pushNotification(isSilent: true))
+//        let appLink = PluginController.createAppLink(from:  "https://experts.net.kibotu/refresh".url!, source: .pushNotification(isSilent: true))
 //        refreshService.onRefresh(appLink: appLink)
         return nil
     }

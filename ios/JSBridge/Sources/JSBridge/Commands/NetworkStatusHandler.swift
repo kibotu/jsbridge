@@ -32,7 +32,7 @@ public class NetworkStatusHandler: BridgeCommand {
     public func handle(content: [String: Any]?) async throws -> [String: Any]? {
         return await withCheckedContinuation { continuation in
             let monitor = NWPathMonitor()
-            let queue = DispatchQueue(label: "com.check24.networkstatus.monitor")
+            let queue = DispatchQueue(label: "net.kibotu.networkstatus.monitor")
             
             monitor.pathUpdateHandler = { [weak self] path in
                 let isConnected = path.status == .satisfied

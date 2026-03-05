@@ -1,4 +1,4 @@
-# check-mate
+# jsbridge
 
 A unified, promise-based JavaScript bridge for bidirectional communication between web content and native mobile apps. `window.jsbridge` works identically on Android and iOS -- because life's too short for platform `if` statements.
 
@@ -518,7 +518,7 @@ This is strictly better than injecting `padding-top: Xpx !important` because web
 ## Project Structure
 
 ```
-check-mate/
+jsbridge/
 ├── bridge.js                  # Unified JS (single source of truth)
 ├── index.html                 # Demo page (symlinked into both sample apps)
 ├── android/

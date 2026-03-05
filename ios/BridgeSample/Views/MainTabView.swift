@@ -101,11 +101,12 @@ struct MainTabView: View {
         else { return }
 
         let tabBar = tabBarController.tabBar
-        let offset = tabBar.frame.height + window.safeAreaInsets.bottom
+        let screenHeight = window.frame.height
+        let tabBarTop = tabBar.frame.origin.y
+        let offset = screenHeight - tabBarTop
 
-        UIView.animate(withDuration: 0.3) {
+        UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseInOut) {
             tabBar.transform = hidden ? CGAffineTransform(translationX: 0, y: offset) : .identity
-            tabBar.alpha = hidden ? 0 : 1
         }
     }
 

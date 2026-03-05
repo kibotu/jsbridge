@@ -17,7 +17,7 @@
  * native object is already on window[BRIDGE_NAME]. We stash a reference to it
  * before overwriting the property with the frozen public API.
  *
- * @see https://github.com/kibotu/check-mate
+ * @see https://github.com/kibotu/jsbridge
  */
 (function () {
   'use strict';

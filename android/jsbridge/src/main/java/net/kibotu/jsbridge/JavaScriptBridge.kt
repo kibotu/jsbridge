@@ -24,7 +24,7 @@ import java.util.WeakHashMap
  * @param webView The WebView instance to bridge with
  * @param commands List of command handlers this bridge responds to
  * @param bridgeName Name exposed to JavaScript (default [DEFAULT_BRIDGE_NAME])
- * @see <a href="https://github.com/kibotu/check-mate">check-mate specification</a>
+ * @see <a href="https://github.com/kibotu/jsbridge">jsbridge specification</a>
  */
 class JavaScriptBridge(
     private val webView: WebView,
