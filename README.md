@@ -4,7 +4,7 @@ A unified, promise-based JavaScript bridge for bidirectional communication betwe
 
 ---
 
-## For Web Developers
+## For Web Developers 
 
 ### Quick Start
 
