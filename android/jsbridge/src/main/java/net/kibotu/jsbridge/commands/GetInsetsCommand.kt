@@ -15,12 +15,12 @@ import timber.log.Timber
  *
  * Web usage:
  * ```javascript
- * const insets = await jsbridge.call({ data: { action: 'getInsets' } });
+ * const insets = await jsbridge.call({ data: { action: 'insets' } });
  * ```
  */
 class GetInsetsCommand(private val contextProvider: () -> Context?) : BridgeCommand {
 
-    override val action = "getInsets"
+    override val action = "insets"
 
     override suspend fun handle(content: Any?): JSONObject = withContext(Dispatchers.Main) {
         try {

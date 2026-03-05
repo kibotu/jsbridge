@@ -5,10 +5,10 @@ import UIKit
 ///
 /// Web usage:
 /// ```javascript
-/// const insets = await jsbridge.call({ data: { action: 'getInsets' } });
+/// const insets = await jsbridge.call({ data: { action: 'insets' } });
 /// ```
 public class GetInsetsHandler: BridgeCommand {
-    public let actionName = "getInsets"
+    public let actionName = "insets"
 
     weak var viewController: UIViewController?
 

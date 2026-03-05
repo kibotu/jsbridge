@@ -487,7 +487,7 @@ await jsbridge.call('openSettings');</textarea></div>
         <h3>CSS Custom Properties</h3>
         <p style="font-size: 13px; color: var(--warn-text); margin-top: 4px;">
             Native automatically pushes <code>--bridge-inset-*</code> CSS properties whenever bars change.
-            Use <code>var(--bridge-inset-top)</code> etc. in your CSS. The <code>getInsets</code> action
+            Use <code>var(--bridge-inset-top)</code> etc. in your CSS. The <code>insets</code> action
             is for on-demand JavaScript queries.
         </p>
     </div>
@@ -500,7 +500,7 @@ body {
   padding-bottom: var(--bridge-inset-bottom, env(safe-area-inset-bottom, 0px));
 }</textarea></div>
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">/* JS: query on demand */
-const insets = await jsbridge.call('getInsets');
+const insets = await jsbridge.call('insets');
 // { statusBar: { height, visible }, systemNavigation: { ... }, safeArea: { top, right, bottom, left } }</textarea></div>
         </div>
     </details>
@@ -861,7 +861,7 @@ console.log(jsbridge.schemaVersion); // → 1
                 log('Mock: ' + action, 'warning');
                 if (action === 'deviceInfo') return { platform: 'desktop', osVersion: navigator.platform, model: 'Browser', appVersion: '1.0.0' };
                 if (action === 'networkState') return { connected: navigator.onLine, type: 'wifi' };
-                if (action === 'getInsets') return { statusBar: { height: 0, visible: false }, systemNavigation: { height: 0, visible: false }, keyboard: { height: 0, visible: false }, safeArea: { top: 0, right: 0, bottom: 0, left: 0 } };
+                if (action === 'insets') return { statusBar: { height: 0, visible: false }, systemNavigation: { height: 0, visible: false }, keyboard: { height: 0, visible: false }, safeArea: { top: 0, right: 0, bottom: 0, left: 0 } };
                 return {};
             });
         }
@@ -979,7 +979,7 @@ console.log(jsbridge.schemaVersion); // → 1
     async function queryInsets() {
         try {
             log('Querying insets...', 'info');
-            var r = await call('getInsets');
+            var r = await call('insets');
             log('Insets received', 'success');
             document.getElementById('insetsGrid').style.display = 'grid';
             document.getElementById('insetTop').textContent = (r.safeArea && r.safeArea.top || 0) + 'px';
