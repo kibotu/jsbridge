@@ -2,7 +2,7 @@ package net.kibotu.jsbridge
 
 import android.content.Context
 import net.kibotu.jsbridge.commands.BridgeCommand
-import net.kibotu.jsbridge.commands.CheckNetworkStatusCommand
+import net.kibotu.jsbridge.commands.NetworkStatusCommand
 import net.kibotu.jsbridge.commands.CopyToClipboardCommand
 import net.kibotu.jsbridge.commands.DeviceInfoCommand
 import net.kibotu.jsbridge.commands.GetInsetsCommand
@@ -51,7 +51,7 @@ object DefaultCommands {
         val contextProvider: () -> Context? = { getBridge()?.context }
         return listOf(
             DeviceInfoCommand(contextProvider),
-            CheckNetworkStatusCommand(contextProvider),
+            NetworkStatusCommand(contextProvider),
             SystemBarsCommand(contextProvider),
             GetInsetsCommand(contextProvider),
             HapticCommand(contextProvider),

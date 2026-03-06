@@ -8,7 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import net.kibotu.jsbridge.commands.BridgeCommand
-import net.kibotu.jsbridge.commands.utils.BridgeResponseUtils
+import net.kibotu.jsbridge.commands.BridgeError
 import net.kibotu.jsbridge.decorators.BridgeWebViewClient
 import org.json.JSONObject
 import timber.log.Timber
@@ -22,7 +22,7 @@ import java.util.WeakHashMap
  * each with its own set of commands.
  *
  * @param webView The WebView instance to bridge with
- * @param commands List of command handlers this bridge responds to
+ * @param commands List of commands this bridge responds to
  * @param bridgeName Name exposed to JavaScript (default [DEFAULT_BRIDGE_NAME])
  * @see <a href="https://github.com/kibotu/jsbridge">jsbridge specification</a>
  */
@@ -109,7 +109,7 @@ class JavaScriptBridge(
                 val data = messageObj.optJSONObject("data")
 
                 if (data == null) {
-                    sendErrorToWeb(id, "INVALID_MESSAGE", "Missing 'data' field in message")
+                    sendErrorToWeb(id, BridgeError.InvalidMessage)
                     return@launch
                 }
 
@@ -121,7 +121,7 @@ class JavaScriptBridge(
 
                 val action = data.optString("action", null)
                 if (action.isNullOrEmpty()) {
-                    sendErrorToWeb(id, "INVALID_MESSAGE", "Missing 'action' field in data")
+                    sendErrorToWeb(id, BridgeError.InvalidMessage)
                     return@launch
                 }
 
@@ -130,7 +130,7 @@ class JavaScriptBridge(
 
                 if (command == null) {
                     Timber.w("[postMessage] Unknown action: $action")
-                    sendErrorToWeb(id, "UNKNOWN_ACTION", "Unknown action: $action")
+                    sendErrorToWeb(id, BridgeError.UnknownAction(action))
                     return@launch
                 }
 
@@ -141,7 +141,7 @@ class JavaScriptBridge(
                 }
             } catch (e: Exception) {
                 Timber.e(e)
-                sendErrorToWeb(id, "INTERNAL_ERROR", e.message ?: "Unknown error")
+                sendErrorToWeb(id, BridgeError.InternalError(e.message ?: "Unknown error"))
             }
         }
     }
@@ -193,6 +193,10 @@ class JavaScriptBridge(
         executeJavaScript(script)
 
         Timber.d("[sendResponseToWeb] id=$id result=$result")
+    }
+
+    private fun sendErrorToWeb(id: String?, error: BridgeError) {
+        sendErrorToWeb(id, error.code, error.message)
     }
 
     private fun sendErrorToWeb(id: String?, code: String, message: String) {

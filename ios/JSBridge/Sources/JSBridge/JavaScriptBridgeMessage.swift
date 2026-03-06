@@ -64,7 +64,7 @@ public struct JavaScriptBridgeMessage: Codable {
 /// **Design Trade-off:**
 /// We lose compile-time type safety but gain flexibility. This is acceptable because:
 /// - JavaScript is dynamically typed anyway
-/// - Bridge handlers validate their specific parameters
+/// - Bridge commands validate their specific parameters
 /// - The alternative (defining every possible parameter type) is impractical
 public struct AnyCodable: Codable {
     let value: Any

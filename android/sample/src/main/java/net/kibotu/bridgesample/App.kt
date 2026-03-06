@@ -17,5 +17,3 @@ class App : Application() {
         Timber.i("BridgeSampleApp initialized")
     }
 }
-
-

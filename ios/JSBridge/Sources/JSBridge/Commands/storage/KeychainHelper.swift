@@ -5,7 +5,7 @@ import Security
 ///
 /// **Why a separate helper class?**
 /// - Encapsulates Keychain's complex Security framework APIs
-/// - Shared by multiple bridge handlers (save/load/remove secure data)
+/// - Shared by multiple bridge commands (save/load/remove secure data)
 /// - Makes testing easier by centralizing Keychain logic
 /// - Provides a clean, simple API over Apple's C-style Security APIs
 ///

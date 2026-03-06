@@ -4,8 +4,8 @@ import UIKit
 ///
 /// Called from multiple sites matching the Android provider pattern:
 /// - didFinish navigation (initial load + navigations)
-/// - TopNavigationHandler (after toggling top bar)
-/// - BottomNavigationHandler (after toggling bottom bar)
+/// - TopNavigationCommand (after toggling top bar)
+/// - BottomNavigationCommand (after toggling bottom bar)
 /// - Window focus gain (returning from another screen/app)
 public class SafeAreaService {
     public static let shared = SafeAreaService()

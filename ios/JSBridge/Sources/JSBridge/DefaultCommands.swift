@@ -33,41 +33,41 @@ public struct DefaultCommands {
     ) -> [BridgeCommand] {
         return [
             // Device & System
-            DeviceInfoHandler(),
-            NetworkStatusHandler(),
-            OpenSettingsHandler(),
+            DeviceInfoCommand(),
+            NetworkStatusCommand(),
+            OpenSettingsCommand(),
 
             // UI
-            ShowToastHandler(viewController: viewController),
-            ShowAlertHandler(viewController: viewController),
+            ShowToastCommand(viewController: viewController),
+            ShowAlertCommand(viewController: viewController),
 
             // Navigation
-            TopNavigationHandler(bridge: bridge),
-            BottomNavigationHandler(bridge: bridge),
-            NavigationHandler(viewController: viewController, webView: webView),
-            OpenUrlHandler(),
+            TopNavigationCommand(bridge: bridge),
+            BottomNavigationCommand(bridge: bridge),
+            NavigationCommand(viewController: viewController, webView: webView),
+            OpenUrlCommand(),
 
             // System
-            SystemBarsHandler(),
-            GetInsetsHandler(viewController: viewController),
-            HapticHandler(),
-            CopyToClipboardHandler(),
-            RequestPermissionsHandler(),
+            SystemBarsCommand(),
+            GetInsetsCommand(viewController: viewController),
+            HapticCommand(),
+            CopyToClipboardCommand(),
+            RequestPermissionsCommand(),
 
             // Storage
-            SaveSecureDataHandler(),
-            LoadSecureDataHandler(),
-            RemoveSecureDataHandler(),
+            SaveSecureDataCommand(),
+            LoadSecureDataCommand(),
+            RemoveSecureDataCommand(),
 
             // Analytics
-            TrackEventHandler(),
-            TrackScreenHandler(),
+            TrackEventCommand(),
+            TrackScreenCommand(),
 
             // Theme
-            ThemeChangedHandler(),
+            ThemeChangedCommand(),
 
             // Refresh
-            RefreshHandler(),
+            RefreshCommand(),
         ]
     }
 }

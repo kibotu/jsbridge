@@ -36,7 +36,7 @@ private class LeakAvoider: NSObject, WKScriptMessageHandler {
 /// Multiple bridges can coexist on the same WKWebView as long as they
 /// use different names.
 public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
-    private var handlers: [BridgeCommand] = []
+    private var commands: [BridgeCommand] = []
     private weak var webView: WKWebView?
     private weak var viewController: UIViewController?
     private var bridgeScriptInjected = false
@@ -56,7 +56,7 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
     ///   - webView: The WKWebView to bridge with.
     ///   - viewController: The hosting view controller (used by UI commands like alerts/toasts).
     ///   - bridgeName: The name exposed to JavaScript (default: `jsbridge`).
-    ///   - commands: The command handlers this bridge responds to.
+    ///   - commands: The commands this bridge responds to.
     public init(
         webView: WKWebView,
         viewController: UIViewController,
@@ -69,7 +69,7 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         super.init()
 
         for command in commands {
-            register(handler: command)
+            register(command: command)
         }
 
         setupMessageHandler()
@@ -87,13 +87,13 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         webView?.configuration.userContentController.add(LeakAvoider(delegate: self), name: name)
     }
 
-    private func register(handler: BridgeCommand) {
-        handlers.append(handler)
-        Orchard.v("[Bridge] Registered handler for action: \(handler.actionName)")
+    private func register(command: BridgeCommand) {
+        commands.append(command)
+        Orchard.v("[Bridge] Registered command for action: \(command.action)")
     }
 
-    private func handler(for action: String) -> BridgeCommand? {
-        return handlers.first { $0.actionName == action }
+    private func command(for action: String) -> BridgeCommand? {
+        return commands.first { $0.action == action }
     }
 
     private func isVersionSupported(_ version: Int) -> Bool {
@@ -178,7 +178,7 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
 
         Orchard.v("[Bridge] Received action: \(action)")
 
-        guard let handler = handler(for: action) else {
+        guard let command = command(for: action) else {
             Orchard.w("[Bridge] Unknown action: \(action)")
             sendError(id: message.id, error: .unknownAction(action))
             return
@@ -187,7 +187,7 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         let messageId = message.id
         Task { [weak self] in
             do {
-                let responseData = try await handler.handle(content: content)
+                let responseData = try await command.handle(content: content)
                 self?.sendSuccess(id: messageId, data: responseData)
             } catch let error as BridgeError {
                 self?.sendError(id: messageId, error: error)

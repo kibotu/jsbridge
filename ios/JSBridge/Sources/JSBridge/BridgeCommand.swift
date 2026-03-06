@@ -1,24 +1,24 @@
 import Foundation
 
-/// Protocol defining a command handler for the JavaScript bridge.
+/// Contract for implementing a single bridge command (Strategy Pattern).
 ///
 /// **Why this pattern?**
 /// - **Extensibility**: New commands can be added without modifying the core bridge logic
-/// - **Single Responsibility**: Each handler focuses on one specific action
-/// - **Testability**: Handlers can be tested in isolation without requiring a full WebView setup
-/// - **Type Safety**: Ensures all handlers conform to the same contract
+/// - **Single Responsibility**: Each command focuses on one specific action
+/// - **Testability**: Commands can be tested in isolation without requiring a full WebView setup
+/// - **Type Safety**: Ensures all commands conform to the same contract
 ///
 /// **Design Decision:**
-/// Uses the Strategy pattern to allow runtime registration of handlers. This enables:
+/// Uses the Strategy pattern to allow runtime registration of commands. This enables:
 /// - Feature teams to add new commands independently
-/// - Conditional handler registration based on app configuration
-/// - Easy mocking and testing of individual command handlers
+/// - Conditional command registration based on app configuration
+/// - Easy mocking and testing of individual commands
 public protocol BridgeCommand {
-    /// The action name this handler responds to
+    /// The action identifier this command handles (e.g., "deviceInfo", "showToast")
     ///
     /// **Why a string?** JavaScript sends action names as strings, and using strings
     /// here maintains the 1:1 mapping between JS and native code.
-    var actionName: String { get }
+    var action: String { get }
 
     /// Handle the command with the given content.
     ///
