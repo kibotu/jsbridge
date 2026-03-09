@@ -3,12 +3,10 @@ name: iOS CI
 on:
   push:
     branches: [ "main" ]
+    tags: [ "*" ]
     paths:
       - "ios/**"
-  pull_request:
-    branches: [ "main" ]
-    paths:
-      - "ios/**"
+      - ".github/workflows/ios.yml"
 
 jobs:
   build:
