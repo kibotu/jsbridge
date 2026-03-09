@@ -1,6 +1,6 @@
 import Foundation
 
-public class BottomNavigationCommand: BridgeCommand {
+public final class BottomNavigationCommand: BridgeCommand, @unchecked Sendable {
     public let action = "bottomNavigation"
 
     weak var bridge: JavaScriptBridge?
@@ -20,4 +20,3 @@ public class BottomNavigationCommand: BridgeCommand {
         return nil
     }
 }
-

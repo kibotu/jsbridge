@@ -13,11 +13,8 @@ import Foundation
 /// - Feature teams to add new commands independently
 /// - Conditional command registration based on app configuration
 /// - Easy mocking and testing of individual commands
-public protocol BridgeCommand {
+public protocol BridgeCommand: Sendable {
     /// The action identifier this command handles (e.g., "deviceInfo", "showToast")
-    ///
-    /// **Why a string?** JavaScript sends action names as strings, and using strings
-    /// here maintains the 1:1 mapping between JS and native code.
     var action: String { get }
 
     /// Handle the command with the given content.
@@ -27,16 +24,12 @@ public protocol BridgeCommand {
     ///
     /// - Parameter content: Optional dictionary of parameters from JavaScript
     /// - Returns: Response dictionary for web, or nil for fire-and-forget
+    @MainActor
     func handle(content: [String: Any]?) async throws -> [String: Any]?
 }
 
 /// Errors that can occur during bridge command handling
-///
-/// **Why a custom error type?**
-/// - Provides structured error codes that JavaScript can programmatically handle
-/// - Ensures consistent error messaging across the bridge boundary
-/// - Makes debugging easier by categorizing different failure modes
-public enum BridgeError: Error {
+public enum BridgeError: Error, Sendable {
     case invalidMessage
     case unknownAction(String)
     case invalidParameter(String)
@@ -73,4 +66,3 @@ public enum BridgeError: Error {
         }
     }
 }
-

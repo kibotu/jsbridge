@@ -2,21 +2,7 @@ import Foundation
 import UIKit
 
 /// Command for showing toast messages
-///
-/// **Why allow web to show toasts?**
-/// - Provides consistent feedback mechanism across native and web content
-/// - Enables web content to give quick feedback without custom UI
-/// - Maintains platform conventions (iOS toasts look native)
-///
-/// **Design Decision:**
-/// Uses UIAlertController as a simple toast implementation. While iOS doesn't have
-/// native "toasts" like Android, this provides similar UX. Can be swapped for a
-/// custom toast library without changing the bridge API.
-///
-/// **Why weak viewController?**
-/// Avoids retain cycle. If the view controller is deallocated while a toast is showing,
-/// the toast will auto-dismiss (UIAlertController behavior).
-public class ShowToastCommand: BridgeCommand {
+public final class ShowToastCommand: BridgeCommand, @unchecked Sendable {
     public let action = "showToast"
     
     weak var viewController: UIViewController?
@@ -42,4 +28,3 @@ public class ShowToastCommand: BridgeCommand {
         return nil
     }
 }
-

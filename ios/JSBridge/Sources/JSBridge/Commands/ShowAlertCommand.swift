@@ -2,22 +2,7 @@ import Foundation
 import UIKit
 
 /// Command for showing alert dialogs
-///
-/// **Why allow web to show alerts?**
-/// - Native alerts look and feel better than web-based modals
-/// - Provides consistent UX across the app
-/// - Enables confirmation dialogs, warnings, and important messages
-/// - Users trust native alerts more than web popups
-///
-/// **Design Decision:**
-/// Supports custom buttons via the `buttons` parameter. If not provided,
-/// defaults to a single "OK" button. This keeps the simple case simple
-/// while allowing more complex alert dialogs when needed.
-///
-/// **Limitation:**
-/// Current implementation doesn't report which button was clicked back to JavaScript.
-/// This could be enhanced if needed by adding a callback mechanism.
-public class ShowAlertCommand: BridgeCommand {
+public final class ShowAlertCommand: BridgeCommand, @unchecked Sendable {
     public let action = "showAlert"
     
     weak var viewController: UIViewController?
@@ -47,4 +32,3 @@ public class ShowAlertCommand: BridgeCommand {
         return nil
     }
 }
-

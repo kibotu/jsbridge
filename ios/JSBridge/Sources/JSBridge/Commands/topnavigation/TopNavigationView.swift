@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Configuration for the top navigation bar
-public struct TopNavigationConfig {
+public struct TopNavigationConfig: Sendable {
     public var isVisible: Bool = true
     public var title: String? = "Bridge Demo"
     public var showBackButton: Bool = false
@@ -27,7 +27,8 @@ public struct TopNavigationConfig {
 }
 
 /// Observable service for top navigation state
-public class TopNavigationService: ObservableObject {
+@MainActor
+public final class TopNavigationService: ObservableObject {
     @Published public var config = TopNavigationConfig()
 
     public static let shared = TopNavigationService()
@@ -35,9 +36,7 @@ public class TopNavigationService: ObservableObject {
     private init() {}
 
     public func configure(with config: TopNavigationConfig) {
-        DispatchQueue.main.async {
-            self.config = config
-        }
+        self.config = config
     }
 
     public func update(isVisible: Bool? = nil,
@@ -46,26 +45,24 @@ public class TopNavigationService: ObservableObject {
                 showDivider: Bool? = nil,
                 showLogo: Bool? = nil,
                 showProfileIconWidget: Bool? = nil) {
-        DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                if let isVisible = isVisible {
-                    self.config.isVisible = isVisible
-                }
-                if let title = title {
-                    self.config.title = title
-                }
-                if let showBackButton = showBackButton {
-                    self.config.showBackButton = showBackButton
-                }
-                if let showDivider = showDivider {
-                    self.config.showDivider = showDivider
-                }
-                if let showLogo = showLogo {
-                    self.config.showLogo = showLogo
-                }
-                if let showProfileIconWidget = showProfileIconWidget {
-                    self.config.showProfileIconWidget = showProfileIconWidget
-                }
+        withAnimation(.easeInOut(duration: 0.3)) {
+            if let isVisible = isVisible {
+                self.config.isVisible = isVisible
+            }
+            if let title = title {
+                self.config.title = title
+            }
+            if let showBackButton = showBackButton {
+                self.config.showBackButton = showBackButton
+            }
+            if let showDivider = showDivider {
+                self.config.showDivider = showDivider
+            }
+            if let showLogo = showLogo {
+                self.config.showLogo = showLogo
+            }
+            if let showProfileIconWidget = showProfileIconWidget {
+                self.config.showProfileIconWidget = showProfileIconWidget
             }
         }
     }

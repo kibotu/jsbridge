@@ -3,7 +3,8 @@ import SwiftUI
 import Orchard
 
 /// Service to manage tab navigation across the app
-public class TabNavigationService: ObservableObject {
+@MainActor
+public final class TabNavigationService: ObservableObject {
     @Published public var selectedTab: Int = 0
 
     public static let shared = TabNavigationService()
@@ -11,11 +12,9 @@ public class TabNavigationService: ObservableObject {
     private init() {}
 
     public func switchToTab(_ index: Int) {
-        DispatchQueue.main.async {
-            withAnimation {
-                self.selectedTab = index
-            }
-            Orchard.v("[TabNavigationService] Switched to tab \(index)")
+        withAnimation {
+            self.selectedTab = index
         }
+        Orchard.v("[TabNavigationService] Switched to tab \(index)")
     }
 }

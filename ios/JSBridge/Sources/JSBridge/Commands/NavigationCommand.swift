@@ -4,25 +4,7 @@ import WebKit
 import Orchard
 
 /// Handles multiple navigation patterns: back navigation, internal/external URLs.
-///
-/// **Why combined command:**
-/// Navigation actions are mutually exclusive - user does one at a time. Single command
-/// simplifies web API (one call instead of multiple) for common navigation patterns.
-///
-/// **Why goBack:**
-/// Allows web to trigger native back navigation. Priority order:
-/// 1. WebView history (if available)
-/// 2. Navigation controller pop (if in a stack)
-/// 3. Dismiss view controller (if presented modally)
-/// 4. Exit app (as last resort on root view controller)
-///
-/// **Why external option:**
-/// Some URLs should open in browser (privacy policies, external sites) to make
-/// clear they're leaving the app. External prevents deep link interception.
-///
-/// **Thread Safety:**
-/// All UIKit operations must run on the main thread, hence the DispatchQueue.main.async
-public class NavigationCommand: BridgeCommand {
+public final class NavigationCommand: BridgeCommand, @unchecked Sendable {
     public let action = "navigation"
     
     weak var viewController: UIViewController?
@@ -57,7 +39,7 @@ public class NavigationCommand: BridgeCommand {
             
             if let viewController = viewController,
                viewController.presentingViewController != nil {
-                await withCheckedContinuation { continuation in
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                     viewController.dismiss(animated: true) {
                         Orchard.v("[NavigationCommand] Dismissed modal view controller")
                         continuation.resume()
@@ -87,4 +69,3 @@ public class NavigationCommand: BridgeCommand {
         throw BridgeError.invalidParameter("Missing navigation parameter")
     }
 }
-

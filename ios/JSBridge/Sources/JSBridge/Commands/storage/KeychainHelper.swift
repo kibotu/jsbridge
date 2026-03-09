@@ -2,29 +2,10 @@ import Foundation
 import Security
 
 /// Helper class for Keychain operations
-///
-/// **Why a separate helper class?**
-/// - Encapsulates Keychain's complex Security framework APIs
-/// - Shared by multiple bridge commands (save/load/remove secure data)
-/// - Makes testing easier by centralizing Keychain logic
-/// - Provides a clean, simple API over Apple's C-style Security APIs
-///
-/// **Security Configuration:**
-/// Uses `kSecAttrAccessibleWhenUnlocked` which means:
-/// - Data is only accessible when device is unlocked
-/// - Balances security with usability
-/// - Prevents access to sensitive data if device is stolen and locked
-///
-/// **Design Decision:**
-/// Stores data as generic password items (kSecClassGenericPassword) because:
-/// - It's the most flexible Keychain item type
-/// - Works for any key-value pair
-/// - Doesn't require certificates or special configurations
-public class KeychainHelper {
+public final class KeychainHelper: Sendable {
     static func save(key: String, value: String) -> Bool {
         guard let data = value.data(using: .utf8) else { return false }
         
-        // Delete any existing item first
         _ = delete(key: key)
         
         let query: [String: Any] = [
@@ -68,4 +49,3 @@ public class KeychainHelper {
         return status == errSecSuccess || status == errSecItemNotFound
     }
 }
-

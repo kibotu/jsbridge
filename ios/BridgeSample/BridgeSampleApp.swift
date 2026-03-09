@@ -1,6 +1,7 @@
 import SwiftUI
 import Orchard
 
+@MainActor
 class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
     @Published var isDarkMode: Bool

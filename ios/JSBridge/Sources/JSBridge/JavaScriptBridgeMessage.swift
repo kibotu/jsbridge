@@ -1,38 +1,13 @@
 import Foundation
 
 /// Represents a message exchanged between JavaScript and native code
-///
-/// **Why this structure?**
-/// - **Version Control**: The schema version enables forward/backward compatibility as the bridge evolves
-/// - **Request-Response Pattern**: The ID field enables matching asynchronous responses to requests
-/// - **Type Safety**: Codable ensures both sides agree on the message format
-///
-/// **Design Decision:**
-/// Keeping the message structure flat and simple makes it easier to:
-/// - Debug by inspecting JSON in browser dev tools
-/// - Parse on both JavaScript and native sides
-/// - Version incrementally without breaking existing clients
-public struct JavaScriptBridgeMessage: Codable {
-    /// Schema version for compatibility checking
-    ///
-    /// **Why needed?** Allows graceful degradation when web and native code are out of sync.
-    /// For example, when users have an old app version but the web content is updated.
+public struct JavaScriptBridgeMessage: Codable, Sendable {
     let version: Int
-    
-    /// Unique identifier for request-response correlation
-    ///
-    /// **Why needed?** Enables asynchronous request-response pattern. Multiple JavaScript calls
-    /// can be in flight simultaneously, and responses must be matched to the correct promise.
     let id: String
-    
-    /// The message payload
     let data: MessageData
     
-    struct MessageData: Codable {
-        /// The action/command to execute
+    struct MessageData: Codable, Sendable {
         let action: String
-        
-        /// Optional content/parameters for the action
         let content: [String: AnyCodable]?
         
         enum CodingKeys: String, CodingKey {
@@ -40,12 +15,12 @@ public struct JavaScriptBridgeMessage: Codable {
             case content
         }
         
-    public init(action: String, content: [String: AnyCodable]? = nil) {
+        public init(action: String, content: [String: AnyCodable]? = nil) {
             self.action = action
             self.content = content
         }
         
-    public init(from decoder: Decoder) throws {
+        public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             action = try container.decode(String.self, forKey: .action)
             content = try container.decodeIfPresent([String: AnyCodable].self, forKey: .content)
@@ -53,20 +28,12 @@ public struct JavaScriptBridgeMessage: Codable {
     }
 }
 
-/// Helper for encoding/decoding dynamic JSON values
+/// Helper for encoding/decoding dynamic JSON values.
 ///
-/// **Why needed?**
-/// Swift's Codable doesn't natively support `Any` types. This wrapper enables:
-/// - Passing dynamic data structures between JavaScript and native
-/// - Supporting various JSON types (string, number, boolean, array, object)
-/// - Maintaining type information during encode/decode cycles
-///
-/// **Design Trade-off:**
-/// We lose compile-time type safety but gain flexibility. This is acceptable because:
-/// - JavaScript is dynamically typed anyway
-/// - Bridge commands validate their specific parameters
-/// - The alternative (defining every possible parameter type) is impractical
-public struct AnyCodable: Codable {
+/// Swift's Codable doesn't natively support `Any` types. This wrapper enables
+/// passing dynamic data structures between JavaScript and native while
+/// supporting various JSON types (string, number, boolean, array, object).
+public struct AnyCodable: Codable, @unchecked Sendable {
     let value: Any
     
     public init(_ value: Any) {
@@ -125,4 +92,3 @@ public struct AnyCodable: Codable {
         }
     }
 }
-

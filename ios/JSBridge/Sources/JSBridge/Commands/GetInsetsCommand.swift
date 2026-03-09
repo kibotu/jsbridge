@@ -2,12 +2,7 @@ import Foundation
 import UIKit
 
 /// Returns current system inset values so web content can adapt its layout.
-///
-/// Web usage:
-/// ```javascript
-/// const insets = await jsbridge.call({ data: { action: 'insets' } });
-/// ```
-public class GetInsetsCommand: BridgeCommand {
+public final class GetInsetsCommand: BridgeCommand, @unchecked Sendable {
     public let action = "insets"
 
     weak var viewController: UIViewController?

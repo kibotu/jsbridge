@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Configuration for bottom navigation
-public struct BottomNavigationConfig {
+public struct BottomNavigationConfig: Sendable {
     public var isVisible: Bool = true
 
     public init(isVisible: Bool = true) {
@@ -10,7 +10,8 @@ public struct BottomNavigationConfig {
 }
 
 /// Observable service for bottom navigation state
-public class BottomNavigationService: ObservableObject {
+@MainActor
+public final class BottomNavigationService: ObservableObject {
     @Published public var config = BottomNavigationConfig()
 
     public static let shared = BottomNavigationService()
@@ -18,16 +19,12 @@ public class BottomNavigationService: ObservableObject {
     private init() {}
 
     public func configure(with config: BottomNavigationConfig) {
-        DispatchQueue.main.async {
-            self.config = config
-        }
+        self.config = config
     }
 
     public func setVisible(_ isVisible: Bool) {
-        DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                self.config.isVisible = isVisible
-            }
+        withAnimation(.easeInOut(duration: 0.3)) {
+            self.config.isVisible = isVisible
         }
     }
 }

@@ -36,7 +36,6 @@ struct WebViewContainer: UIViewControllerRepresentable {
 
 /// WKWebView subclass that prevents its scroll view gesture recognizers
 /// from capturing touches outside its visible bounds.
-/// Fixes a known iOS issue where WKWebView steals taps from UITabBar.
 class BoundsRespectingWebView: WKWebView {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard self.bounds.contains(point) else { return nil }

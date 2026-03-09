@@ -1,10 +1,10 @@
 import UIKit
 
 private enum AssociatedKeys {
-    static var currentlyHasFocus: UInt8 = 0
-    static var focusCheckTimer: UInt8 = 0
-    static var backgroundObserver: UInt8 = 0
-    static var foregroundObserver: UInt8 = 0
+    nonisolated(unsafe) static var currentlyHasFocus: UInt8 = 0
+    nonisolated(unsafe) static var focusCheckTimer: UInt8 = 0
+    nonisolated(unsafe) static var backgroundObserver: UInt8 = 0
+    nonisolated(unsafe) static var foregroundObserver: UInt8 = 0
 }
 
 // MARK: - Default property
@@ -81,8 +81,6 @@ extension WindowFocusObserver {
 
 extension WindowFocusObserver {
 
-    /// Heuristic focus check — mirrors Android's window-focus semantics as
-    /// closely as iOS allows.
     private func isCurrentlyFocused() -> Bool {
         guard UIApplication.shared.applicationState == .active else { return false }
         guard isViewLoaded, view.window != nil else { return false }
@@ -129,8 +127,6 @@ extension WindowFocusObserver {
 
 extension WindowFocusObserver {
 
-    /// Uses block-based observers so we don't need `@objc` selectors
-    /// (which can't be declared in protocol extensions).
     private func addAppLifecycleObservers() {
         guard backgroundObserver == nil else { return }
 
@@ -140,15 +136,21 @@ extension WindowFocusObserver {
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            self?.dispatchFocusChange(false)
+            guard let self else { return }
+            MainActor.assumeIsolated {
+                self.dispatchFocusChange(false)
+            }
         }
 
         foregroundObserver = nc.addObserver(
             forName: UIApplication.willEnterForegroundNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            guard let self, self.isViewLoaded, self.view.window != nil else { return }
-            self.dispatchFocusChange(self.isCurrentlyFocused())
+            guard let self else { return }
+            MainActor.assumeIsolated {
+                guard self.isViewLoaded, self.view.window != nil else { return }
+                self.dispatchFocusChange(self.isCurrentlyFocused())
+            }
         }
     }
 

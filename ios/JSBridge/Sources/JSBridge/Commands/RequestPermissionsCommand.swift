@@ -5,17 +5,12 @@ import Photos
 import Orchard
 
 /// Requests system permissions on behalf of web content.
-///
-/// Web code cannot directly request iOS permissions (camera, location, photos).
-/// This bridges the permission model gap, allowing web apps to trigger native
-/// permission dialogs for device capabilities that require explicit user consent.
-///
-/// Supported permission types: "camera", "microphone", "photoLibrary", "location".
-public class RequestPermissionsCommand: BridgeCommand {
+public final class RequestPermissionsCommand: BridgeCommand {
     public let action = "requestPermissions"
 
     public init() {}
 
+    @MainActor
     public func handle(content: [String: Any]?) async throws -> [String: Any]? {
         guard let permissions = content?["permissions"] as? [String], !permissions.isEmpty else {
             throw BridgeError.invalidParameter("permissions")
@@ -35,7 +30,7 @@ public class RequestPermissionsCommand: BridgeCommand {
         ]
     }
 
-    private func requestPermissionAsync(_ permission: String) async -> String {
+    nonisolated private func requestPermissionAsync(_ permission: String) async -> String {
         await withCheckedContinuation { continuation in
             switch permission {
             case "camera":

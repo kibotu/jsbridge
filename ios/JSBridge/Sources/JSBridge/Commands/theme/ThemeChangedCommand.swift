@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Updates `ThemeService.shared` so the native app can observe
 /// and apply the theme change.
-public class ThemeChangedCommand: BridgeCommand {
+public final class ThemeChangedCommand: BridgeCommand {
     public let action = "themeChanged"
 
     public init() {}

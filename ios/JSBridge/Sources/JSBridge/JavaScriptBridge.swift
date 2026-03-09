@@ -7,10 +7,11 @@ import Orchard
 /// `WKUserContentController.add(_:name:)` retains its delegate strongly.
 /// Without this proxy, the bridge and the WebView's content controller form a retain cycle:
 /// contentController -> bridge -> (weak) webView -> configuration -> contentController.
-private class LeakAvoider: NSObject, WKScriptMessageHandler {
-    weak var delegate: WKScriptMessageHandler?
+@MainActor
+private final class LeakAvoider: NSObject, WKScriptMessageHandler {
+    weak var delegate: (any WKScriptMessageHandler)?
 
-    init(delegate: WKScriptMessageHandler) {
+    init(delegate: any WKScriptMessageHandler) {
         self.delegate = delegate
         super.init()
     }
@@ -35,8 +36,9 @@ private class LeakAvoider: NSObject, WKScriptMessageHandler {
 ///
 /// Multiple bridges can coexist on the same WKWebView as long as they
 /// use different names.
-public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
-    private var commands: [BridgeCommand] = []
+@MainActor
+public final class JavaScriptBridge: NSObject, WKScriptMessageHandler {
+    private var commands: [any BridgeCommand] = []
     private weak var webView: WKWebView?
     private weak var viewController: UIViewController?
     private var bridgeScriptInjected = false
@@ -61,7 +63,7 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         webView: WKWebView,
         viewController: UIViewController,
         bridgeName: String = defaultBridgeName,
-        commands: [BridgeCommand]
+        commands: [any BridgeCommand]
     ) {
         self.name = bridgeName
         self.webView = webView
@@ -77,7 +79,11 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
     }
 
     deinit {
-        webView?.configuration.userContentController.removeScriptMessageHandler(forName: name)
+        let name = self.name
+        let controller = webView?.configuration.userContentController
+        MainActor.assumeIsolated {
+            controller?.removeScriptMessageHandler(forName: name)
+        }
     }
 
     // MARK: - Setup
@@ -87,16 +93,16 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         webView?.configuration.userContentController.add(LeakAvoider(delegate: self), name: name)
     }
 
-    private func register(command: BridgeCommand) {
+    private func register(command: any BridgeCommand) {
         commands.append(command)
         Orchard.v("[Bridge] Registered command for action: \(command.action)")
     }
 
-    private func command(for action: String) -> BridgeCommand? {
+    private func command(for action: String) -> (any BridgeCommand)? {
         return commands.first { $0.action == action }
     }
 
-    private func isVersionSupported(_ version: Int) -> Bool {
+    nonisolated private func isVersionSupported(_ version: Int) -> Bool {
         return version <= schemaVersion
     }
 
@@ -121,7 +127,7 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         Orchard.v("[Bridge] Bridge script injected (name=\(name), schema v\(schemaVersion))")
     }
 
-    private func loadBridgeScript() -> String {
+    nonisolated private func loadBridgeScript() -> String {
         guard let url = Bundle.module.url(forResource: "bridge", withExtension: "js"),
               let rawScript = try? String(contentsOf: url, encoding: .utf8) else {
             Orchard.e("[Bridge] Failed to load bridge.js from bundle")
@@ -229,11 +235,9 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
 
         let script = "window.\(callbackResponse) && window.\(callbackResponse)(\(jsonString));"
 
-        DispatchQueue.main.async { [weak self] in
-            self?.webView?.evaluateJavaScript(script) { _, error in
-                if let error = error {
-                    Orchard.e("[Bridge] Failed to send response: \(error)")
-                }
+        webView?.evaluateJavaScript(script) { _, error in
+            if let error = error {
+                Orchard.e("[Bridge] Failed to send response: \(error)")
             }
         }
     }
@@ -257,11 +261,9 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
 
         let script = "window.\(callbackMessage) && window.\(callbackMessage)(\(jsonString));"
 
-        DispatchQueue.main.async { [weak self] in
-            self?.webView?.evaluateJavaScript(script) { _, error in
-                if let error = error {
-                    Orchard.e("[Bridge] Failed to send message to web: \(error)")
-                }
+        webView?.evaluateJavaScript(script) { _, error in
+            if let error = error {
+                Orchard.e("[Bridge] Failed to send message to web: \(error)")
             }
         }
     }
@@ -294,11 +296,9 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         })();
         """
 
-        DispatchQueue.main.async { [weak self] in
-            self?.webView?.evaluateJavaScript(js) { _, error in
-                if let error = error {
-                    Orchard.e("[Bridge] Failed to inject safe area CSS: \(error)")
-                }
+        webView?.evaluateJavaScript(js) { _, error in
+            if let error = error {
+                Orchard.e("[Bridge] Failed to inject safe area CSS: \(error)")
             }
         }
     }

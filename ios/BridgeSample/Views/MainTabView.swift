@@ -92,12 +92,15 @@ struct MainTabView: View {
         return Bundle.main.url(forResource: filename.replacingOccurrences(of: ".html", with: ""), withExtension: "html") ?? URL(string: "about:blank")!
     }
 
+    @MainActor
     private func startPushNotificationSimulation(bridge: JavaScriptBridge) {
         Timer.scheduledTimer(withTimeInterval: Double.random(in: 7...15), repeats: true) { _ in
-            bridge.sendToWeb(action: "onPushNotification", content: [
-                "url": "https://www.google.com",
-                "message": "Lorem Ipsum"
-            ])
+            MainActor.assumeIsolated {
+                bridge.sendToWeb(action: "onPushNotification", content: [
+                    "url": "https://www.google.com",
+                    "message": "Lorem Ipsum"
+                ])
+            }
         }
     }
 }
@@ -109,62 +112,9 @@ private struct TabBarHiddenModifier: ViewModifier {
     let animated: Bool
 
     func body(content: Content) -> some View {
-        if #available(iOS 16.0, *) {
-            content
-                .toolbar(isHidden ? .hidden : .visible, for: .tabBar)
-                .animation(animated ? .easeInOut(duration: 0.3) : nil, value: isHidden)
-        } else {
-            content
-                .onAppear { setTabBarHidden(isHidden) }
-                .onChange(of: isHidden) { setTabBarHidden($0) }
-        }
-    }
-
-    private func setTabBarHidden(_ hidden: Bool) {
-        guard let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene }).first,
-              let window = windowScene.windows.first,
-              let tabBarController = findTabBarController(from: window.rootViewController)
-        else { return }
-
-        let tabBar = tabBarController.tabBar
-        let tabBarHeight = tabBar.frame.height
-
-        guard animated else {
-            tabBar.isHidden = hidden
-            if let containerView = tabBarController.view {
-                containerView.frame.size.height = window.frame.height + (hidden ? tabBarHeight : -tabBarHeight)
-            }
-            return
-        }
-
-        if hidden {
-            UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseInOut) {
-                tabBar.alpha = 0
-                tabBar.frame.origin.y = window.frame.maxY
-            } completion: { _ in
-                tabBar.isHidden = true
-            }
-        } else {
-            tabBar.isHidden = false
-            tabBar.alpha = 0
-            tabBar.frame.origin.y = window.frame.maxY
-            UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseInOut) {
-                tabBar.alpha = 1
-                tabBar.frame.origin.y = window.frame.maxY - tabBarHeight
-            }
-        }
-    }
-
-    private func findTabBarController(from vc: UIViewController?) -> UITabBarController? {
-        if let tbc = vc as? UITabBarController { return tbc }
-        for child in vc?.children ?? [] {
-            if let found = findTabBarController(from: child) { return found }
-        }
-        if let presented = vc?.presentedViewController {
-            return findTabBarController(from: presented)
-        }
-        return nil
+        content
+            .toolbar(isHidden ? .hidden : .visible, for: .tabBar)
+            .animation(animated ? .easeInOut(duration: 0.3) : nil, value: isHidden)
     }
 }
 
