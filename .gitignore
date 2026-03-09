@@ -168,3 +168,9 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,macos,jetbrains+all,visualstudiocode
+
+### Swift Package Manager ###
+.build/
+.swiftpm/
+Package.resolved
+*.xcodeproj/xcuserdata/
