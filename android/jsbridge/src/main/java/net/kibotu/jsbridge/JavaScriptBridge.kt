@@ -1,5 +1,6 @@
 package net.kibotu.jsbridge
 
+import android.os.Build
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import kotlinx.coroutines.CoroutineScope
@@ -81,9 +82,13 @@ class JavaScriptBridge(
             val map = bridges.getOrPut(webView) { mutableMapOf() }
             map[bridgeName] = bridge
 
-            val currentClient = webView.webViewClient
-            if (currentClient !is BridgeWebViewClient) {
-                webView.webViewClient = BridgeWebViewClient(currentClient)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val currentClient = webView.webViewClient
+                if (currentClient !is BridgeWebViewClient) {
+                    webView.webViewClient = BridgeWebViewClient(currentClient)
+                }
+            } else {
+                webView.webViewClient = BridgeWebViewClient(null)
             }
 
             Timber.d("[Bridge] Injected (name=$bridgeName, commands=${commands.size})")

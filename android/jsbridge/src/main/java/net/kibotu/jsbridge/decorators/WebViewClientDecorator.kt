@@ -14,6 +14,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.annotation.RequiresApi
 
 /**
  * Base decorator for [WebViewClient] that delegates every callback to the wrapped [delegate].
@@ -28,6 +29,7 @@ open class WebViewClientDecorator(
     protected val delegate: WebViewClient?
 ) : WebViewClient() {
 
+    @RequiresApi(24)
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean =
         delegate?.shouldOverrideUrlLoading(view, request) ?: super.shouldOverrideUrlLoading(view, request)
 
@@ -124,11 +126,13 @@ open class WebViewClientDecorator(
         delegate?.onUnhandledKeyEvent(view, event) ?: super.onUnhandledKeyEvent(view, event)
     }
 
+    @RequiresApi(27)
     override fun onSafeBrowsingHit(view: WebView?, request: WebResourceRequest?, threatType: Int, callback: SafeBrowsingResponse?) {
         delegate?.onSafeBrowsingHit(view, request, threatType, callback)
             ?: super.onSafeBrowsingHit(view, request, threatType, callback)
     }
 
+    @RequiresApi(26)
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean =
         delegate?.onRenderProcessGone(view, detail) ?: super.onRenderProcessGone(view, detail)
 }

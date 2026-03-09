@@ -2,6 +2,7 @@ package net.kibotu.jsbridge
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import timber.log.Timber
 
 /**
@@ -90,7 +91,7 @@ internal class TinkSecureStorageBackend(context: Context) : SecureStorageBackend
 
     override fun save(key: String, value: String) {
         val encrypted = aead.encrypt(value.toByteArray(Charsets.UTF_8), key.toByteArray(Charsets.UTF_8))
-        prefs.edit().putString(key, android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)).apply()
+        prefs.edit { putString(key, android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)) }
     }
 
     override fun load(key: String): String? {
@@ -101,7 +102,7 @@ internal class TinkSecureStorageBackend(context: Context) : SecureStorageBackend
     }
 
     override fun remove(key: String) {
-        prefs.edit().remove(key).apply()
+        prefs.edit { remove(key) }
     }
 
     override fun contains(key: String): Boolean = prefs.contains(key)
@@ -133,13 +134,13 @@ internal class LegacySecureStorageBackend(context: Context) : SecureStorageBacke
     }
 
     override fun save(key: String, value: String) {
-        prefs.edit().putString(key, value).apply()
+        prefs.edit { putString(key, value) }
     }
 
     override fun load(key: String): String? = prefs.getString(key, null)
 
     override fun remove(key: String) {
-        prefs.edit().remove(key).apply()
+        prefs.edit { remove(key) }
     }
 
     override fun contains(key: String): Boolean = prefs.contains(key)
