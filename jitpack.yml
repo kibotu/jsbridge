@@ -1,4 +1,4 @@
 jdk:
   - openjdk17
 install:
-  - cd android && ./gradlew :jsbridge:build :jsbridge:publishToMavenLocal
+  - cd android && ./gradlew clean :jsbridge:build :jsbridge:publishToMavenLocal -Pgroup=com.github.kibotu -Pversion=$VERSION -xtest -xlint
