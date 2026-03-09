@@ -9,6 +9,45 @@ A unified, promise-based JavaScript bridge for bidirectional communication betwe
 
 ---
 
+## Table of Contents
+
+- [Why jsbridge?](#why-jsbridge)
+- [Architecture](#architecture)
+- [For Web Developers](#for-web-developers)
+  - [Quick Start](#quick-start)
+  - [Core API](#core-api)
+  - [What You Get Out of the Box](#what-you-get-out-of-the-box)
+  - [Message Shape](#message-shape)
+  - [Actions Reference](#actions-reference)
+  - [Edge-to-Edge & Safe Area](#edge-to-edge--safe-area)
+  - [Focus Awareness](#focus-awareness)
+  - [Schema Versioning](#schema-versioning)
+  - [Error Handling](#error-handling)
+  - [Testing & Debugging](#testing--debugging)
+  - [TypeScript](#typescript)
+  - [Tips](#tips)
+  - [Platform Support](#platform-support)
+- [For Native App Developers](#for-native-app-developers)
+  - [How It Works](#how-it-works)
+  - [Android Setup](#android-setup)
+  - [iOS Setup](#ios-setup)
+  - [Sending Lifecycle Events](#sending-lifecycle-events)
+  - [Adding a New Command](#adding-a-new-command)
+  - [Native-Driven Safe Area CSS](#native-driven-safe-area-css)
+  - [Multiple Bridges Per WebView](#multiple-bridges-per-webview)
+  - [Changing the Bridge Name](#changing-the-bridge-name)
+  - [Response Format](#response-format)
+  - [Message Protocol](#message-protocol)
+  - [Security](#security)
+- [Project Structure](#project-structure)
+  - [Building](#building)
+- [Performance](#performance)
+- [Changelog](#changelog)
+- [Support](#support)
+- [License](#license)
+
+---
+
 ## Why jsbridge?
 
 If you've built web content inside a native app, you know the drill. Android gives you `@JavascriptInterface` with string callbacks. iOS gives you `WKScriptMessageHandler` with a completely different API. You end up with code like this:
