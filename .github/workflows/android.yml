@@ -4,18 +4,18 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "android-sample/**"
+      - "android/**"
   pull_request:
     branches: [ "main" ]
     paths:
-      - "android-sample/**"
+      - "android/**"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: android-sample
+        working-directory: android
 
     steps:
       - uses: actions/checkout@v4

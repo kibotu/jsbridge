@@ -4,18 +4,18 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "ios-sample/**"
+      - "ios/**"
   pull_request:
     branches: [ "main" ]
     paths:
-      - "ios-sample/**"
+      - "ios/**"
 
 jobs:
   build:
     runs-on: macos-latest
     defaults:
       run:
-        working-directory: ios-sample
+        working-directory: ios
 
     steps:
       - name: Checkout
