@@ -494,11 +494,20 @@ await jsbridge.call('openSettings');</textarea></div>
     <div class="button-group">
         <button onclick="queryInsets()">Get Insets</button>
     </div>
-    <div class="insets-grid" id="insetsGrid" style="display:none;">
-        <div class="inset-card"><strong>Top</strong><br><span id="insetTop">--</span></div>
-        <div class="inset-card"><strong>Right</strong><br><span id="insetRight">--</span></div>
-        <div class="inset-card"><strong>Bottom</strong><br><span id="insetBottom">--</span></div>
-        <div class="inset-card"><strong>Left</strong><br><span id="insetLeft">--</span></div>
+    <div id="insetsResult" style="display:none;">
+        <h3 style="margin-top:12px;font-size:14px;color:var(--text-primary);">Safe Area</h3>
+        <div class="insets-grid" style="margin-top:8px;">
+            <div class="inset-card"><strong>Top</strong><br><span id="insetTop">--</span></div>
+            <div class="inset-card"><strong>Right</strong><br><span id="insetRight">--</span></div>
+            <div class="inset-card"><strong>Bottom</strong><br><span id="insetBottom">--</span></div>
+            <div class="inset-card"><strong>Left</strong><br><span id="insetLeft">--</span></div>
+        </div>
+        <h3 style="margin-top:12px;font-size:14px;color:var(--text-primary);">Components</h3>
+        <div class="insets-grid" style="margin-top:8px;">
+            <div class="inset-card"><strong>Status Bar</strong><br><span id="insetStatusBar">--</span></div>
+            <div class="inset-card"><strong>System Nav</strong><br><span id="insetSystemNav">--</span></div>
+            <div class="inset-card"><strong>Keyboard</strong><br><span id="insetKeyboard">--</span></div>
+        </div>
     </div>
     <div class="test-section">
         <h3>CSS Custom Properties</h3>
@@ -507,21 +516,66 @@ await jsbridge.call('openSettings');</textarea></div>
             change.
             Use <code>var(--bridge-inset-top)</code> etc. in your CSS. The <code>insets</code>
             action
-            is for on-demand JavaScript queries.
+            is for on-demand JavaScript queries. All values are in dp/pt.
+        </p>
+        <p style="font-size: 13px; color: var(--warn-text); margin-top: 4px;">
+            <code>safeArea.top</code> = status bar + top navigation (when visible).<br>
+            <code>safeArea.bottom</code> = system navigation + bottom navigation (when visible).
         </p>
     </div>
     <details class="collapsible" style="margin-top:12px;">
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-            <div class="cm-wrapper"><textarea class="cm-code" data-mode="css">/* CSS: automatically updated by native */
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="css">/* CSS: automatically updated by native (dp/pt values) */
 body {
   padding-top: var(--bridge-inset-top, env(safe-area-inset-top, 0px));
   padding-bottom: var(--bridge-inset-bottom, env(safe-area-inset-bottom, 0px));
-}</textarea></div>
-            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">/* JS: query on demand */
+}
+
+/* Individual bar heights also available: */
+/* --bridge-status-bar, --bridge-top-nav */
+/* --bridge-bottom-nav, --bridge-system-nav */</textarea></div>
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">/* JS: query on demand (all values in dp/pt) */
 const insets = await jsbridge.call('insets');
-// { statusBar: { height, visible }, systemNavigation: { ... }, safeArea: { top, right, bottom, left } }</textarea>
+// {
+//   statusBar:        { height: 30.13, visible: true },
+//   systemNavigation: { height: 14.93, visible: true },
+//   keyboard:         { height: 0, visible: false },
+//   safeArea: {
+//     top: 86.13,    // statusBar + topNavigation
+//     right: 0,
+//     bottom: 14.93, // systemNav + bottomNav (if visible)
+//     left: 0
+//   }
+// }</textarea>
             </div>
+        </div>
+    </details>
+</div>
+
+<!-- System Bars Info -->
+<div class="section">
+    <h2>System Bars Info</h2>
+    <div class="button-group">
+        <button onclick="getSystemBarInfo()">Get System Bar Info</button>
+    </div>
+    <div class="insets-grid" id="systemBarGrid" style="display:none;">
+        <div class="inset-card"><strong>Status Bar</strong><br><span id="sbiStatusBar">--</span></div>
+        <div class="inset-card"><strong>Top Nav</strong><br><span id="sbiTopNav">--</span></div>
+        <div class="inset-card"><strong>Bottom Nav</strong><br><span id="sbiBottomNav">--</span></div>
+        <div class="inset-card"><strong>System Nav</strong><br><span id="sbiSystemNav">--</span></div>
+    </div>
+    <details class="collapsible" style="margin-top:12px;">
+        <summary>Spec &amp; Usage</summary>
+        <div class="collapsible-content">
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Query current system bar dimensions (all values in dp/pt)
+const info = await jsbridge.call('systemBarsInfo');
+// → {
+//   statusBar:        { height: 24.0,  isVisible: true },
+//   topNavigation:    { height: 56.0,  isVisible: true },
+//   bottomNavigation: { height: 0,     isVisible: false },
+//   systemNavigation: { height: 14.93, isVisible: true }
+// }</textarea></div>
         </div>
     </details>
 </div>
@@ -907,6 +961,7 @@ console.log(jsbridge.schemaVersion); // → 1
                 if (action === 'deviceInfo') return { platform: 'desktop', osVersion: navigator.platform, model: 'Browser', appVersion: '1.0.0' };
                 if (action === 'networkState') return { connected: navigator.onLine, type: 'wifi' };
                 if (action === 'insets') return { statusBar: { height: 0, visible: false }, systemNavigation: { height: 0, visible: false }, keyboard: { height: 0, visible: false }, safeArea: { top: 0, right: 0, bottom: 0, left: 0 } };
+                if (action === 'systemBarsInfo') return { statusBar: { height: 0, isVisible: true }, topNavigation: { height: 0, isVisible: true }, bottomNavigation: { height: 0, isVisible: false }, systemNavigation: { height: 0, isVisible: false } };
                 return {};
             });
         }
@@ -1034,12 +1089,45 @@ console.log(jsbridge.schemaVersion); // → 1
             log('Querying insets...', 'info');
             var r = await call('insets');
             log('Insets received', 'success');
-            document.getElementById('insetsGrid').style.display = 'grid';
-            document.getElementById('insetTop').textContent = (r.safeArea && r.safeArea.top || 0) + 'px';
-            document.getElementById('insetRight').textContent = (r.safeArea && r.safeArea.right || 0) + 'px';
-            document.getElementById('insetBottom').textContent = (r.safeArea && r.safeArea.bottom || 0) + 'px';
-            document.getElementById('insetLeft').textContent = (r.safeArea && r.safeArea.left || 0) + 'px';
+
+            document.getElementById('insetsResult').style.display = 'block';
+
+            var sa = r.safeArea || {};
+            document.getElementById('insetTop').textContent = (sa.top || 0) + 'dp';
+            document.getElementById('insetRight').textContent = (sa.right || 0) + 'dp';
+            document.getElementById('insetBottom').textContent = (sa.bottom || 0) + 'dp';
+            document.getElementById('insetLeft').textContent = (sa.left || 0) + 'dp';
+
+            var fmtBar = function (bar) {
+                if (!bar) return '0dp';
+                return bar.height + 'dp (' + (bar.visible ? 'visible' : 'hidden') + ')';
+            };
+            document.getElementById('insetStatusBar').textContent = fmtBar(r.statusBar);
+            document.getElementById('insetSystemNav').textContent = fmtBar(r.systemNavigation);
+            document.getElementById('insetKeyboard').textContent = fmtBar(r.keyboard);
+
+            log('safeArea: top=' + sa.top + ' right=' + sa.right + ' bottom=' + sa.bottom + ' left=' + sa.left, 'success');
         } catch (e) { log('Error: ' + e.message, 'error'); throw e; }
+    }
+
+    // -- system bars info
+    async function getSystemBarInfo() {
+        try {
+            log('Querying system bar info...', 'info');
+            var info = await call('systemBarsInfo');
+
+            var fmt = function (bar) {
+                return bar.height + 'dp (' + (bar.isVisible ? 'visible' : 'hidden') + ')';
+            };
+
+            document.getElementById('systemBarGrid').style.display = 'grid';
+            document.getElementById('sbiStatusBar').textContent = fmt(info.statusBar);
+            document.getElementById('sbiTopNav').textContent = fmt(info.topNavigation);
+            document.getElementById('sbiBottomNav').textContent = fmt(info.bottomNavigation);
+            document.getElementById('sbiSystemNav').textContent = fmt(info.systemNavigation);
+
+            log('System bar info: statusBar=' + fmt(info.statusBar) + ', topNav=' + fmt(info.topNavigation) + ', bottomNav=' + fmt(info.bottomNavigation) + ', systemNav=' + fmt(info.systemNavigation), 'success');
+        } catch (e) { log('Error: ' + e.message, 'error'); }
     }
 
     // -- UI actions
@@ -1266,6 +1354,7 @@ console.log(jsbridge.schemaVersion); // → 1
             { name: 'Clipboard', fn: copyToClipboard },
             { name: 'Haptic', fn: triggerHaptic },
             { name: 'Insets', fn: queryInsets },
+            { name: 'SystemBarsInfo', fn: getSystemBarInfo },
         ];
         var passed = 0, failed = 0;
         for (var i = 0; i < tests.length; i++) {

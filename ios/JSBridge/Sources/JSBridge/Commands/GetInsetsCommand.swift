@@ -3,6 +3,10 @@ import UIKit
 
 /// Returns current system inset values so web content can adapt its layout.
 ///
+/// All heights are in points (pt) which map 1:1 to dp on Android, ensuring
+/// cross-platform parity. `safeArea` includes both system bars and native
+/// app chrome (top/bottom navigation) when visible.
+///
 /// Falls back from the view controller's window scene to the first connected scene
 /// to handle edge cases where the VC's window is not yet in the hierarchy.
 ///
@@ -29,13 +33,22 @@ public final class GetInsetsCommand: BridgeCommand, BridgeAware, @unchecked Send
         let isStatusBarHidden = windowScene?.statusBarManager?.isStatusBarHidden ?? false
         let rootSafeArea = vc.view.window?.safeAreaInsets ?? vc.view.safeAreaInsets
 
+        let isTopNavVisible = TopNavigationService.shared.config.isVisible
+        let isBottomNavVisible = BottomNavigationService.shared.config.isVisible
+
+        let topNavHeight = isTopNavVisible ? SafeAreaService.shared.topBarHeight : 0
+        let bottomNavHeight = isBottomNavVisible ? SafeAreaService.shared.bottomBarHeight : 0
+
+        let safeTop = statusBarHeight + topNavHeight
+        let safeBottom = rootSafeArea.bottom + bottomNavHeight
+
         return [
             "statusBar": [
-                "height": Int(statusBarHeight),
+                "height": round2(statusBarHeight),
                 "visible": !isStatusBarHidden
             ],
             "systemNavigation": [
-                "height": Int(rootSafeArea.bottom),
+                "height": round2(rootSafeArea.bottom),
                 "visible": rootSafeArea.bottom > 0
             ],
             "keyboard": [
@@ -43,11 +56,15 @@ public final class GetInsetsCommand: BridgeCommand, BridgeAware, @unchecked Send
                 "visible": false
             ],
             "safeArea": [
-                "top": Int(rootSafeArea.top),
-                "right": Int(rootSafeArea.right),
-                "bottom": Int(rootSafeArea.bottom),
-                "left": Int(rootSafeArea.left)
+                "top": round2(safeTop),
+                "right": round2(rootSafeArea.right),
+                "bottom": round2(safeBottom),
+                "left": round2(rootSafeArea.left)
             ]
         ]
+    }
+
+    private func round2(_ value: CGFloat) -> Double {
+        (Double(value) * 100).rounded() / 100
     }
 }

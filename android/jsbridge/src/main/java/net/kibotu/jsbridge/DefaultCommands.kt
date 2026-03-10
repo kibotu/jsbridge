@@ -17,6 +17,7 @@ import net.kibotu.jsbridge.commands.ShowToastCommand
 import net.kibotu.jsbridge.commands.bottomnavigation.BottomNavigationCommand
 import net.kibotu.jsbridge.commands.refresh.RefreshCommand
 import net.kibotu.jsbridge.commands.systembars.SystemBarsCommand
+import net.kibotu.jsbridge.commands.systembars.SystemBarsInfoCommand
 import net.kibotu.jsbridge.commands.theme.ThemeChangedCommand
 import net.kibotu.jsbridge.commands.topnavigation.TopNavigationCommand
 import net.kibotu.jsbridge.commands.tracking.TrackEventCommand
@@ -45,6 +46,7 @@ object DefaultCommands {
         DeviceInfoCommand(),
         NetworkStatusCommand(),
         SystemBarsCommand(),
+        SystemBarsInfoCommand(),
         GetInsetsCommand(),
         HapticCommand(),
         RequestPermissionsCommand(),

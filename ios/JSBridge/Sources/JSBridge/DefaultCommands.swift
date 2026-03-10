@@ -32,6 +32,7 @@ public struct DefaultCommands {
             NavigationCommand(),
 
             SystemBarsCommand(),
+            SystemBarsInfoCommand(),
             GetInsetsCommand(),
             HapticCommand(),
             CopyToClipboardCommand(),
