@@ -903,6 +903,8 @@ New:
 - `jsbridge.supports(feature)` and `jsbridge.features`. Commands contribute their action name automatically; override `features` on a `BridgeCommand` to declare finer names.
 - `setMockHandler(fn, { features })` declares what a desktop mock implements.
 - First automated tests: `npm test` (JS), `:jsbridge:testDebugUnitTest` (Android), `swift test` in `ios/JSBridge` (iOS).
+- Maestro UI flows for the Android sample in `.maestro/` (`maestro test .maestro/`).
+- The demo page no longer loads CodeMirror from a CDN. highlight.js is inlined (`npm run update:highlightjs` refreshes it), so the page works offline and behind proxies.
 
 ### 3.0.0 (2026-02-21)
 

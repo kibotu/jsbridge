@@ -1,0 +1,17 @@
+# supports() and features reflect what the host registered.
+appId: net.kibotu.bridgesample
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Bridge Ready \\(android\\)"
+    timeout: 15000
+- scrollUntilVisible:
+    element: "Run All Tests"
+    timeout: 90000
+    speed: 70
+- tapOn: "List Features"
+- assertVisible: ".*deviceInfo.*"
+- assertVisible: ".*haptic.*"
+- tapOn: "Check"
+- assertVisible: "supported"

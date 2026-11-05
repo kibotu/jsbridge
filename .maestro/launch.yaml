@@ -1,0 +1,14 @@
+# The demo page boots, the bridge becomes ready, and the code samples render read-only.
+appId: net.kibotu.bridgesample
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Bridge Ready \\(android\\)"
+    timeout: 15000
+- tapOn: "Specification.*"
+- assertVisible: "Features:"
+- assertVisible: ".*await jsbridge.ready.*"
+# Samples are plain text, not inputs: tapping one must not bring up the keyboard.
+- tapOn: ".*await jsbridge.ready.*"
+- assertVisible: "Bridge Ready \\(android\\)"
