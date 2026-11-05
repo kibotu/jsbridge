@@ -176,3 +176,5 @@ Package.resolved
 *.xcodeproj/xcuserdata/
 # local working notes
 progress.md
+
+.vscode
