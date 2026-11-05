@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-05
+
 ### Fixed
 
 - iOS: `JavaScriptBridge` no longer fails to compile with "main actor-isolated property 'commands' can not be referenced from a nonisolated context". The `2.0.0` tag does not build on iOS.
@@ -124,7 +126,8 @@ First tagged release.
 - Android and iOS sample apps with a shared `index.html` demo page.
 - Continuous integration for Android and iOS.
 
-[Unreleased]: https://github.com/kibotu/jsbridge/compare/2.0.0...HEAD
+[Unreleased]: https://github.com/kibotu/jsbridge/compare/2.0.1...HEAD
+[2.0.1]: https://github.com/kibotu/jsbridge/compare/2.0.0...2.0.1
 [2.0.0]: https://github.com/kibotu/jsbridge/compare/1.0.9...2.0.0
 [1.0.9]: https://github.com/kibotu/jsbridge/compare/1.0.8...1.0.9
 [1.0.8]: https://github.com/kibotu/jsbridge/compare/1.0.7...1.0.8
