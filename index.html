@@ -218,6 +218,18 @@
         button:active { transform: translateY(1px); }
         button:disabled { background: var(--text-muted); cursor: not-allowed; box-shadow: none; }
 
+        input[type="text"] {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 11px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 0;
+        }
+
+        input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
         .console {
             background: var(--console-bg);
             color: var(--console-text);
@@ -855,7 +867,7 @@ jsbridge.call('trackScreen', {
     <div class="button-group">
         <button onclick="listFeatures()">List Features</button>
         <button onclick="checkFeature()">Check</button>
-        <input id="featureName" type="text" value="haptic" aria-label="Feature name" style="max-width:160px;">
+        <input id="featureName" type="text" value="haptic" aria-label="Feature name">
     </div>
     <div id="featureInfo" class="device-info" style="display: none;">
         <div class="device-info-item"><strong>Platform:</strong> <span id="featurePlatform">--</span></div>
@@ -881,6 +893,16 @@ console.log(jsbridge.features);
 // - unknown names, null and non-strings return false</textarea></div>
         </div>
     </details>
+</div>
+
+<!-- Tests -->
+<div class="section">
+    <h2>Automated Tests</h2>
+    <div class="button-group">
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="testFireAndForget()">Test Fire &amp; Forget</button>
+        <button onclick="testErrorHandling()">Test Errors</button>
+    </div>
 </div>
 
 <script>
