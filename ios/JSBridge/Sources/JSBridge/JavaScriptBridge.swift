@@ -130,7 +130,7 @@ public final class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         Orchard.v("[Bridge] Bridge script injected (name=\(name))")
     }
 
-    nonisolated private func loadBridgeScript() -> String {
+    private func loadBridgeScript() -> String {
         guard let url = Bundle.module.url(forResource: "bridge", withExtension: "js"),
               let rawScript = try? String(contentsOf: url, encoding: .utf8) else {
             Orchard.e("[Bridge] Failed to load bridge.js from bundle")

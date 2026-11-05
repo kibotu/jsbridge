@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- iOS: `JavaScriptBridge` no longer fails to compile with "main actor-isolated property 'commands' can not be referenced from a nonisolated context". The `2.0.0` tag does not build on iOS.
+
 ## [2.0.0] - 2026-11-05
 
 ### Added
