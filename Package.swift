@@ -22,5 +22,10 @@ let package = Package(
                 .copy("Resources/bridge.js"),
             ]
         ),
+        .testTarget(
+            name: "JSBridgeTests",
+            dependencies: ["JSBridge"],
+            path: "ios/JSBridge/Tests/JSBridgeTests"
+        ),
     ]
 )

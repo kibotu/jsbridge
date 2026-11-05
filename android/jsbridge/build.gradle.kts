@@ -46,4 +46,6 @@ dependencies {
     implementation(libs.androidx.webkit)
     compileOnly(libs.tink.android)
     compileOnly(libs.androidx.security.crypto)
+    testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

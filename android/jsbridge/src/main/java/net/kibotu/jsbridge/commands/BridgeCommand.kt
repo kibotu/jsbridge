@@ -34,6 +34,14 @@ interface BridgeCommand {
     val action: String
 
     /**
+     * Feature names this command adds to `jsbridge.supports()`.
+     *
+     * Defaults to [action]. Declare finer-grained names (`"haptic.pattern"`) when a command grows
+     * capabilities that older hosts lack. A changed capability gets a new name, never a number.
+     */
+    val features: Set<String> get() = setOf(action)
+
+    /**
      * Executes the bridge command with provided parameters.
      *
      * **Why nullable return:**

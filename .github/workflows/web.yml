@@ -1,0 +1,28 @@
+name: Web CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "bridge.js"
+      - "test/**"
+      - "package.json"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths:
+      - "bridge.js"
+      - "test/**"
+      - "package.json"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test
+        run: npm test

@@ -46,7 +46,6 @@ class JavaScriptBridge(
 
     companion object {
         const val DEFAULT_BRIDGE_NAME = "jsbridge"
-        const val SCHEMA_VERSION = 1
 
         private val bridges = WeakHashMap<WebView, MutableMap<String, JavaScriptBridge>>()
 
@@ -107,7 +106,7 @@ class JavaScriptBridge(
     /**
      * Entry point for all web-to-native communication.
      *
-     * @param message JSON string from web: `{ id?, version?, data: { action, content? } }`
+     * @param message JSON string from web: `{ id?, data: { action, content? } }`
      */
     @Suppress("unused")
     @JavascriptInterface
@@ -123,12 +122,6 @@ class JavaScriptBridge(
 
                 if (data == null) {
                     sendErrorToWeb(id, BridgeError.InvalidMessage)
-                    return@launch
-                }
-
-                val requestedVersion = messageObj.optInt("version", SCHEMA_VERSION)
-                if (requestedVersion > SCHEMA_VERSION) {
-                    Timber.w("[postMessage] Ignoring message with version $requestedVersion (current: $SCHEMA_VERSION)")
                     return@launch
                 }
 
@@ -302,8 +295,6 @@ class JavaScriptBridge(
             .bufferedReader()
             .use { it.readText() }
 
-        return rawScript
-            .replace("__BRIDGE_NAME__", bridgeName)
-            .replace("__SCHEMA_VERSION__", SCHEMA_VERSION.toString())
+        return renderScript(rawScript, bridgeName, commands)
     }
 }

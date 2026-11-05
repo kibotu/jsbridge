@@ -21,7 +21,7 @@ A unified, promise-based JavaScript bridge for bidirectional communication betwe
   - [Actions Reference](#actions-reference)
   - [Edge-to-Edge & Safe Area](#edge-to-edge--safe-area)
   - [Focus Awareness](#focus-awareness)
-  - [Schema Versioning](#schema-versioning)
+  - [Feature Detection](#feature-detection)
   - [Error Handling](#error-handling)
   - [Testing & Debugging](#testing--debugging)
   - [TypeScript](#typescript)
@@ -103,23 +103,23 @@ if (platform === 'android' && semver.gte(appVersion, '4.2.0')) {
 }
 ```
 
-With jsbridge, schema versioning is a single integer:
+With jsbridge, you ask the host what it can do instead of guessing from a version number:
 
 ```js
-if (jsbridge.schemaVersion >= 2) {
+if (jsbridge.supports('showToast.style')) {
   await jsbridge.call('showToast', { message, style: 'custom' });
 } else {
   await jsbridge.call('showToast', { message });
 }
 ```
 
-No semver parsing, no platform branching, no archaeological expeditions into old release notes. Native silently ignores messages from newer schema versions. Your call times out, you fallback gracefully.
+No semver parsing, no platform branching, no archaeological expeditions into old release notes. The host lists what it implements; your page checks for the one thing it needs.
 
 ### What jsbridge gives you
 
 - **One API, both platforms.** Write bridge calls once. Ship everywhere.
 - **Promises, not callbacks.** `async`/`await` all the way down. No more `window.callbackXyz_12345`.
-- **Schema versioning.** One integer instead of platform x version matrices.
+- **Feature detection.** `supports('name')` instead of platform x version matrices.
 - **Built-in commands.** Navigation bars, system bars, safe area, haptics, storage, analytics. Ready to go.
 - **Easy to extend.** Adding a new native command is ~50 lines. You never touch bridge infrastructure.
 - **Easy to test.** Mock handler for desktop, debug logging, browser DevTools support.
@@ -204,8 +204,9 @@ That's the whole API. One method to call native (`call`), one to listen (`on`). 
 | `jsbridge.setDebug(bool)` | Enables verbose console logging. |
 | `jsbridge.setMockHandler(fn)` | Registers a mock for desktop browser testing. |
 | `jsbridge.platform` | `'android'` \| `'ios'` \| `'desktop'` (read-only) |
-| `jsbridge.schemaVersion` | Integer version set by native (read-only) |
-| `jsbridge.getStats()` | Returns `{ pendingRequests, schemaVersion, platform, handlers, debugEnabled }` |
+| `jsbridge.supports(feature)` | `true` if the host implements `feature`. Synchronous. See [Feature Detection](#feature-detection). |
+| `jsbridge.features` | Frozen array of every feature the host declared (read-only) |
+| `jsbridge.getStats()` | Returns `{ pendingRequests, platform, features, handlers, debugEnabled }` |
 
 ### What You Get Out of the Box
 
@@ -414,20 +415,24 @@ This covers all the tricky cases:
 
 On `focused`, native also re-pushes safe area CSS, so your layout is always correct after returning from another screen.
 
-### Schema Versioning
+### Feature Detection
 
-Simple integer, auto-attached to every message. Native silently ignores messages from newer schema versions. Your call will timeout, and you can fallback:
+There is no protocol version. The host tells the page what it implements, and the page asks:
 
 ```js
-if (jsbridge.schemaVersion >= 2) {
-  await jsbridge.call('fancyNewThing');
+if (jsbridge.supports('haptic.pattern')) {
+  await jsbridge.call('haptic', { type: 'pattern', timings: [0, 40, 80], amplitudes: [1, 0, 1] });
 } else {
-  oldApproach();
+  await jsbridge.call('haptic', { vibrate: true });
 }
 ```
 
-**Bump when:** breaking format changes, removing commands, incompatible behavior.
-**Don't bump when:** adding commands, adding optional fields, fixing bugs.
+- Every registered command contributes its action name (`haptic`). Commands that grow later declare finer names (`haptic.pattern`).
+- A changed capability gets a **new name**. Names never carry numbers, so there is nothing to compare.
+- `supports()` is synchronous and always safe to call: unknown names, `null` and non-strings return `false`.
+- `jsbridge.features` lists everything, which is handy in the console.
+- Calling an action the host doesn't have rejects with `UNKNOWN_ACTION`, so a missed check fails loudly.
+- In a desktop browser nothing is supported until you register a mock: `jsbridge.setMockHandler(fn, { features: ['haptic'] })`.
 
 ### Error Handling
 
@@ -499,26 +504,27 @@ jsbridge.setDebug(true);
 
 ```js
 jsbridge.getStats()
-// → { pendingRequests: 0, schemaVersion: 1, platform: 'android', handlers: 1, debugEnabled: true }
+// → { pendingRequests: 0, platform: 'android', features: ['deviceInfo', ...], handlers: 1, debugEnabled: true }
 ```
 
 ### TypeScript
 
 ```typescript
-interface CallOptions { timeout?: number; version?: number; }
+interface CallOptions { timeout?: number; }
 
 interface Bridge {
-  schemaVersion: number;
+  readonly features: readonly string[];
   platform: 'android' | 'ios' | 'desktop';
   ready(): Promise<void>;
+  supports(feature: string): boolean;
   call<T = unknown>(action: string, content?: unknown, opts?: CallOptions): Promise<T>;
   call<T = unknown>(msg: { data: { action: string; content?: unknown } }, opts?: CallOptions): Promise<T>;
   on(handler: (msg: { data: { action: string; content?: unknown } }) => void): void;
   off(handler: Function): void;
   cancelAll(): void;
   setDebug(enabled: boolean): void;
-  setMockHandler(handler: Function | null): void;
-  getStats(): { pendingRequests: number; schemaVersion: number; platform: string; handlers: number; debugEnabled: boolean };
+  setMockHandler(handler: Function | null, opts?: { features?: string[] }): void;
+  getStats(): { pendingRequests: number; platform: string; features: readonly string[]; handlers: number; debugEnabled: boolean };
 }
 
 declare global { interface Window { jsbridge: Bridge } }
@@ -529,7 +535,7 @@ declare global { interface Window { jsbridge: Bridge } }
 - **Always** `await jsbridge.ready()` before anything else
 - **Set timeouts** on calls: `{ timeout: 5000 }`. 30s default is generous
 - **Don't await analytics.** Fire-and-forget is faster
-- **Version-gate new features**: `if (jsbridge.schemaVersion >= 2) { ... }`
+- **Feature-detect, don't version-sniff**: `if (jsbridge.supports('haptic.pattern')) { ... }`
 - **Cache device info.** It doesn't change mid-session
 - **Batch with `Promise.all()`** for parallel operations
 - **Register `on()` once** during init, route by `action`
@@ -811,7 +817,6 @@ Standardized across both platforms: `{ id, data?, error? }`. If `error` is prese
 ```json
 {
   "id": "msg_1234567890_1_abc123xyz",
-  "version": 1,
   "data": {
     "action": "showToast",
     "content": { "message": "Hello!" }
@@ -819,7 +824,7 @@ Standardized across both platforms: `{ id, data?, error? }`. If `error` is prese
 }
 ```
 
-Version checking: if `version > SCHEMA_VERSION`, silently ignore. Web will timeout and fallback.
+Messages carry no version. A legacy `version` field sent by an old page is ignored.
 
 ### Security
 
@@ -885,6 +890,19 @@ Batch with `Promise.all()`. Cache what doesn't change. Don't await what doesn't 
 ---
 
 ## Changelog
+
+### 4.0.0 (unreleased)
+
+Breaking changes:
+
+- **Removed `schemaVersion`.** `jsbridge.schemaVersion`, the `version` message field, the `__SCHEMA_VERSION__` template variable, `CallOptions.version`, `JavaScriptBridge.SCHEMA_VERSION` (Android) and `BridgeError.UnsupportedVersion` / `.unsupportedVersion` are gone. Native ignores a legacy `version` field. Use `jsbridge.supports(feature)` instead.
+- `bridgeReady` event detail is now `{ platform, features }`.
+
+New:
+
+- `jsbridge.supports(feature)` and `jsbridge.features`. Commands contribute their action name automatically; override `features` on a `BridgeCommand` to declare finer names.
+- `setMockHandler(fn, { features })` declares what a desktop mock implements.
+- First automated tests: `npm test` (JS), `:jsbridge:testDebugUnitTest` (Android), `swift test` in `ios/JSBridge` (iOS).
 
 ### 3.0.0 (2026-02-21)
 
