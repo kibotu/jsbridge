@@ -17,6 +17,12 @@ public protocol BridgeCommand: Sendable {
     /// The action identifier this command handles (e.g., "deviceInfo", "showToast")
     var action: String { get }
 
+    /// Feature names this command adds to `jsbridge.supports()`.
+    ///
+    /// Defaults to ``action``. Declare finer-grained names (`"haptic.pattern"`) when a command grows
+    /// capabilities that older hosts lack. A changed capability gets a new name, never a number.
+    var features: Set<String> { get }
+
     /// Handle the command with the given content.
     ///
     /// Throw `BridgeError` for expected failures (invalid parameters, missing data).
@@ -28,6 +34,10 @@ public protocol BridgeCommand: Sendable {
     func handle(content: [String: Any]?) async throws -> [String: Any]?
 }
 
+extension BridgeCommand {
+    public var features: Set<String> { [action] }
+}
+
 /// Structured error type for the bridge layer.
 ///
 /// Mirrors the Android `BridgeError` sealed class so both platforms produce
@@ -37,7 +47,6 @@ public enum BridgeError: Error, Sendable {
     case unknownAction(String)
     case invalidParameter(String)
     case internalError(String)
-    case unsupportedVersion(Int)
     
     public var code: String {
         switch self {
@@ -52,9 +61,6 @@ public enum BridgeError: Error, Sendable {
 
         case .internalError:
             return "INTERNAL_ERROR"
-
-        case .unsupportedVersion:
-            return "UNSUPPORTED_VERSION"
         }
     }
     
@@ -71,9 +77,6 @@ public enum BridgeError: Error, Sendable {
 
         case .internalError(let msg):
             return "Internal error: \(msg)"
-
-        case .unsupportedVersion(let version):
-            return "Unsupported schema version: \(version)"
         }
     }
 }

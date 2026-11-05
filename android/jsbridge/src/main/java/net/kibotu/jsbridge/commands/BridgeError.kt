@@ -18,7 +18,4 @@ sealed class BridgeError(val code: String, val message: String) {
 
     data class InternalError(val msg: String) :
         BridgeError("INTERNAL_ERROR", "Internal error: $msg")
-
-    data class UnsupportedVersion(val version: Int) :
-        BridgeError("UNSUPPORTED_VERSION", "Unsupported schema version: $version")
 }

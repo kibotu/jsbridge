@@ -45,8 +45,6 @@ public final class JavaScriptBridge: NSObject, WKScriptMessageHandler {
 
     public let name: String
 
-    private let schemaVersion: Int = 1
-
     private var callbackResponse: String { "__\(name)_handleResponse" }
     private var callbackMessage: String { "__\(name)_handleNativeMessage" }
 
@@ -111,10 +109,6 @@ public final class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         commands.first { $0.action == action }
     }
 
-    nonisolated private func isVersionSupported(_ version: Int) -> Bool {
-        version <= schemaVersion
-    }
-
     /// Injects the unified bridge JavaScript into the WebView at document start.
     /// Reads bridge.js from the bundle resource and replaces template variables.
     /// Guards against duplicate injection to prevent WKUserScript accumulation.
@@ -133,7 +127,7 @@ public final class JavaScriptBridge: NSObject, WKScriptMessageHandler {
 
         webView?.configuration.userContentController.addUserScript(userScript)
         bridgeScriptInjected = true
-        Orchard.v("[Bridge] Bridge script injected (name=\(name), schema v\(schemaVersion))")
+        Orchard.v("[Bridge] Bridge script injected (name=\(name))")
     }
 
     nonisolated private func loadBridgeScript() -> String {
@@ -143,9 +137,7 @@ public final class JavaScriptBridge: NSObject, WKScriptMessageHandler {
             return ""
         }
 
-        return rawScript
-            .replacingOccurrences(of: "__BRIDGE_NAME__", with: name)
-            .replacingOccurrences(of: "__SCHEMA_VERSION__", with: String(schemaVersion))
+        return BridgeScript.render(rawScript, name: name, commands: commands)
     }
 
     // MARK: - WKScriptMessageHandler
@@ -180,11 +172,6 @@ public final class JavaScriptBridge: NSObject, WKScriptMessageHandler {
             if let rawId = rawId {
                 sendError(id: rawId, error: .invalidMessage)
             }
-            return
-        }
-
-        if !isVersionSupported(message.version) {
-            Orchard.w("[Bridge] Silently ignoring unsupported version: \(message.version)")
             return
         }
 

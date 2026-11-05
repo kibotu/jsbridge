@@ -3,11 +3,11 @@
  * between web content and native mobile apps (Android & iOS).
  *
  * This file is the single source of truth. Both Android and iOS embed it
- * verbatim, templating in BRIDGE_NAME and SCHEMA_VERSION at injection time.
+ * verbatim, templating in BRIDGE_NAME and FEATURES at injection time.
  *
  * Native template variables (replaced before injection):
  *   __BRIDGE_NAME__    -- e.g. "jsbridge"  (the window.* property name for public API)
- *   __SCHEMA_VERSION__ -- e.g. 1           (integer)
+ *   __FEATURES__       -- e.g. ["haptic","toast"]  (JSON array of feature names the host supports)
  *
  * The native interface is registered under the same name on both platforms:
  *   Android: addJavascriptInterface(bridge, BRIDGE_NAME)  --> window.jsbridge.postMessage()
@@ -25,7 +25,7 @@
   try {
     (function initializeBridge() {
       var BRIDGE_NAME = '__BRIDGE_NAME__';
-      var SCHEMA_VERSION = __SCHEMA_VERSION__;
+      var NATIVE_FEATURES = __FEATURES__;
       var DEFAULT_TIMEOUT = 30000;
       var CALLBACK_RESPONSE = '__' + BRIDGE_NAME + '_handleResponse';
       var CALLBACK_MESSAGE = '__' + BRIDGE_NAME + '_handleNativeMessage';
@@ -42,7 +42,7 @@
         : null;
 
       // Guard against double init (e.g. bridge script injected twice)
-      if (window[BRIDGE_NAME] && window[BRIDGE_NAME].schemaVersion != null) {
+      if (window[BRIDGE_NAME] && typeof window[BRIDGE_NAME].supports === 'function') {
         console.warn('[' + BRIDGE_NAME + '] Already initialized');
         return;
       }
@@ -52,8 +52,17 @@
       var pendingPromises = {};
       var messageHandlers = [];
       var mockHandler = null;
+      var features = [];
+      var featureSet = Object.create(null);
       var idCounter = 0;
       var _platform = nativeAndroid ? 'android' : (nativeIOS ? 'ios' : 'desktop');
+
+      function setFeatures(list) {
+        features = Object.freeze(list.filter(function (f) { return typeof f === 'string'; }));
+        featureSet = Object.create(null);
+        for (var i = 0; i < features.length; i++) featureSet[features[i]] = true;
+      }
+      setFeatures(NATIVE_FEATURES);
 
       var readyResolve;
       var readyPromise = new Promise(function (resolve) {
@@ -172,10 +181,12 @@
       // -- public API -----------------------------------------------------
 
       var bridge = {
-        schemaVersion: SCHEMA_VERSION,
-
         ready: function () {
           return readyPromise;
+        },
+
+        supports: function (feature) {
+          return typeof feature === 'string' && featureSet[feature] === true;
         },
 
         setDebug: function (enabled) {
@@ -201,10 +212,8 @@
               validateMessage(message);
               id = generateId();
               var timeout = opts.timeout != null ? opts.timeout : DEFAULT_TIMEOUT;
-              var version = opts.version != null ? opts.version : SCHEMA_VERSION;
 
               var fullMessage = {
-                version: version,
                 id: id,
                 data: message.data
               };
@@ -245,12 +254,15 @@
           }
         },
 
-        setMockHandler: function (handler) {
+        setMockHandler: function (handler, options) {
           if (handler !== null && typeof handler !== 'function') throw new Error('Mock handler must be a function or null');
           mockHandler = handler;
           if (handler) {
             _platform = 'desktop';
+            setFeatures(options && Array.isArray(options.features) ? options.features : []);
             debugLog('Mock handler set -- desktop testing mode active');
+          } else {
+            setFeatures(NATIVE_FEATURES);
           }
         },
 
@@ -269,13 +281,18 @@
         getStats: function () {
           return {
             pendingRequests: Object.keys(pendingPromises).length,
-            schemaVersion: SCHEMA_VERSION,
             platform: _platform,
+            features: features,
             handlers: messageHandlers.length,
             debugEnabled: debug
           };
         }
       };
+
+      Object.defineProperty(bridge, 'features', {
+        get: function () { return features; },
+        enumerable: true
+      });
 
       Object.defineProperty(bridge, 'platform', {
         get: function () { return _platform; },
@@ -299,12 +316,12 @@
         readyResolve();
         try {
           window.dispatchEvent(new CustomEvent('bridgeReady', {
-            detail: { schemaVersion: SCHEMA_VERSION, platform: _platform }
+            detail: { platform: _platform, features: features }
           }));
         } catch (e) {
           console.error('[' + BRIDGE_NAME + '] Failed to dispatch ready event:', e);
         }
-        console.log('[' + BRIDGE_NAME + '] Initialized (v' + SCHEMA_VERSION + ', ' + _platform + ') in ' + ms + 'ms');
+        console.log('[' + BRIDGE_NAME + '] Initialized (' + _platform + ') in ' + ms + 'ms');
       }, 0);
     })();
   } catch (err) {

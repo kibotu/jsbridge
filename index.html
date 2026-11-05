@@ -405,8 +405,8 @@
             <div class="device-info" style="display:block; margin-top:8px;">
                 <div class="device-info-item"><strong>Global:</strong> <span>window.jsbridge</span>
                 </div>
-                <div class="device-info-item"><strong>Schema:</strong> <code class="badge"
-                                                                             id="specSchemaVersion">--</code>
+                <div class="device-info-item"><strong>Features:</strong> <code class="badge"
+                                                                               id="specFeatures">--</code>
                 </div>
                 <div class="device-info-item"><strong>Platform:</strong> <span
                         id="specPlatform">--</span></div>
@@ -434,13 +434,13 @@ const info = await jsbridge.call('deviceInfo');</textarea></div>
                 <li><strong>jsbridge.setMockHandler(fn | null)</strong></li>
                 <li><strong>jsbridge.platform</strong> — <code class="badge">'android' | 'ios' |
                     'desktop'</code></li>
-                <li><strong>jsbridge.schemaVersion</strong> — integer</li>
+                <li><strong>jsbridge.supports(feature)</strong> — <code class="badge">boolean</code>, synchronous</li>
+                <li><strong>jsbridge.features</strong> — frozen array of host features</li>
             </ul>
 
             <h3 style="margin-top:12px; font-size:14px; color:var(--text-primary);">Message
                 format</h3>
             <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">{
-  version: jsbridge.schemaVersion,
   id: "msg_...",
   data: { action: "...", content: { ... } }
 }</textarea></div>
@@ -849,44 +849,38 @@ jsbridge.call('trackScreen', {
     </details>
 </div>
 
-<!-- Schema Versioning -->
+<!-- Feature Detection -->
 <div class="section">
-    <h2>Schema Versioning</h2>
+    <h2>Feature Detection</h2>
     <div class="button-group">
-        <button onclick="checkSchemaVersion()">Check Schema</button>
-        <button onclick="testVersionCompatibility()">Test Compatibility</button>
+        <button onclick="listFeatures()">List Features</button>
+        <button onclick="checkFeature()">Check</button>
+        <input id="featureName" type="text" value="haptic" aria-label="Feature name" style="max-width:160px;">
     </div>
-    <div id="schemaInfo" class="device-info" style="display: none;">
-        <div class="device-info-item"><strong>Version:</strong> <span id="schemaVersion">--</span>
-        </div>
-        <div class="device-info-item"><strong>Platform:</strong> <span id="schemaPlatform">--</span>
-        </div>
-        <div class="device-info-item"><strong>Compatibility:</strong> <span
-                id="schemaCompat">--</span></div>
+    <div id="featureInfo" class="device-info" style="display: none;">
+        <div class="device-info-item"><strong>Platform:</strong> <span id="featurePlatform">--</span></div>
+        <div class="device-info-item"><strong>Supported:</strong> <span id="featureList">--</span></div>
+        <div class="device-info-item"><strong>Result:</strong> <span id="featureResult">--</span></div>
     </div>
     <details class="collapsible" style="margin-top:12px;">
         <summary>Spec &amp; Usage</summary>
         <div class="collapsible-content">
-            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Check current schema version
-console.log(jsbridge.schemaVersion); // → 1
+            <div class="cm-wrapper"><textarea class="cm-code" data-mode="javascript">// Ask the host instead of guessing from a version number
+if (jsbridge.supports('haptic.pattern')) {
+  await jsbridge.call('haptic', { type: 'pattern', timings: [0, 40, 80], amplitudes: [1, 0, 1] });
+} else {
+  await jsbridge.call('haptic', { vibrate: true });
+}
 
-// Version is sent automatically in every call:
-// { version: 1, id: "msg_...", data: { action: "..." } }
-//
-// Native silently ignores messages with version > its own,
-// so newer web code degrades gracefully on older apps.</textarea></div>
+// Everything the host declared (frozen array)
+console.log(jsbridge.features);
+
+// Rules:
+// - every registered command contributes its action name
+// - a changed capability gets a NEW name, never a number
+// - unknown names, null and non-strings return false</textarea></div>
         </div>
     </details>
-</div>
-
-<!-- Tests -->
-<div class="section">
-    <h2>Automated Tests</h2>
-    <div class="button-group">
-        <button onclick="runAllTests()">Run All Tests</button>
-        <button onclick="testFireAndForget()">Test Fire &amp; Forget</button>
-        <button onclick="testErrorHandling()">Test Errors</button>
-    </div>
 </div>
 
 <script>
@@ -963,7 +957,7 @@ console.log(jsbridge.schemaVersion); // → 1
                 if (action === 'insets') return { statusBar: { height: 0, visible: false }, systemNavigation: { height: 0, visible: false }, keyboard: { height: 0, visible: false }, safeArea: { top: 0, right: 0, bottom: 0, left: 0 } };
                 if (action === 'systemBarsInfo') return { statusBar: { height: 0, isVisible: true }, topNavigation: { height: 0, isVisible: true }, bottomNavigation: { height: 0, isVisible: false }, systemNavigation: { height: 0, isVisible: false } };
                 return {};
-            });
+            }, { features: ['deviceInfo', 'networkState', 'insets', 'systemBarsInfo'] });
         }
     }
 
@@ -978,11 +972,11 @@ console.log(jsbridge.schemaVersion); // → 1
             bridgeReady = true;
 
             document.getElementById('statusDot').className = 'status-dot ready';
-            document.getElementById('statusText').textContent = 'Bridge Ready (v' + bridge.schemaVersion + ', ' + bridge.platform + ')';
-            document.getElementById('specSchemaVersion').textContent = 'v' + bridge.schemaVersion;
+            document.getElementById('statusText').textContent = 'Bridge Ready (' + bridge.platform + ')';
+            document.getElementById('specFeatures').textContent = bridge.features.length;
             document.getElementById('specPlatform').textContent = bridge.platform;
 
-            log('Bridge initialized (v' + bridge.schemaVersion + ', ' + bridge.platform + ')', 'success');
+            log('Bridge initialized (' + bridge.platform + ', ' + bridge.features.length + ' features)', 'success');
 
             bridge.on(handleNativeMessage);
             log('Listening for native messages', 'info');
@@ -1317,31 +1311,28 @@ console.log(jsbridge.schemaVersion); // → 1
         log('Screen tracked (fire & forget)', 'success');
     }
 
-    // -- schema versioning
-    function updateSchemaCard(compat) {
-        var el = document.getElementById('schemaInfo');
-        el.style.display = 'block';
-        document.getElementById('schemaVersion').textContent = 'v' + bridge.schemaVersion;
-        document.getElementById('schemaPlatform').textContent = bridge.platform;
-        if (compat != null) {
-            var compatEl = document.getElementById('schemaCompat');
-            compatEl.textContent = compat ? 'OK' : 'Failed';
-            compatEl.style.color = compat ? 'var(--success)' : 'var(--error)';
+    // -- feature detection
+    function showFeatures(result) {
+        document.getElementById('featureInfo').style.display = 'block';
+        document.getElementById('featurePlatform').textContent = bridge.platform;
+        document.getElementById('featureList').textContent = bridge.features.length ? bridge.features.join(', ') : '(none)';
+        if (result != null) {
+            var el = document.getElementById('featureResult');
+            el.textContent = result ? 'supported' : 'not supported';
+            el.style.color = result ? 'var(--success)' : 'var(--error)';
         }
     }
 
-    function checkSchemaVersion() {
-        log('Schema version: ' + bridge.schemaVersion, 'success');
-        updateSchemaCard(null);
+    function listFeatures() {
+        log('Features: ' + (bridge.features.join(', ') || '(none)'), 'success');
+        showFeatures(null);
     }
 
-    async function testVersionCompatibility() {
-        log('Testing version ' + bridge.schemaVersion + '...', 'info');
-        try {
-            await call('deviceInfo');
-            log('Version ' + bridge.schemaVersion + ' works', 'success');
-            updateSchemaCard(true);
-        } catch (e) { log('Error: ' + e.message, 'error'); updateSchemaCard(false); }
+    function checkFeature() {
+        var name = document.getElementById('featureName').value.trim();
+        var supported = bridge.supports(name);
+        log('supports(' + JSON.stringify(name) + ') = ' + supported, supported ? 'success' : 'warning');
+        showFeatures(supported);
     }
 
     // -- tests
@@ -1386,7 +1377,7 @@ console.log(jsbridge.schemaVersion); // → 1
     });
 
     // Fallback: if bridgeReady event already fired before this script ran
-    if (window[BRIDGE] && window[BRIDGE].schemaVersion != null) {
+    if (window[BRIDGE] && typeof window[BRIDGE].supports === 'function') {
         initBridge();
     }
 
