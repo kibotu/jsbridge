@@ -18,7 +18,16 @@
   <a href="https://kibotu.github.io/jsbridge/">Live demo</a> ·
   <a href="#for-web-developers">Web</a> ·
   <a href="#for-app-developers">Android &amp; iOS</a> ·
+  <a href="https://medium.com/proandroiddev/one-await-to-rule-them-all-a-unified-webview-bridge-for-android-and-ios-6e4aa9f9f683">Article</a> ·
   <a href="CHANGELOG.md">Changelog</a>
+</p>
+
+<p align="center">
+  <a href="https://medium.com/proandroiddev/one-await-to-rule-them-all-a-unified-webview-bridge-for-android-and-ios-6e4aa9f9f683">
+    <img src="docs/teaser.webp" alt="Steampunk illustration: an Android robot and an iPhone showing a checkout screen, joined by a glowing portal of code" width="720">
+  </a>
+  <br>
+  <sub>Want the story behind jsbridge? Read <a href="https://medium.com/proandroiddev/one-await-to-rule-them-all-a-unified-webview-bridge-for-android-and-ios-6e4aa9f9f683"><em>One await to rule them all</em></a> on ProAndroidDev.</sub>
 </p>
 
 ---
