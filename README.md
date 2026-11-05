@@ -1,322 +1,163 @@
-# jsbridge
+<h1 align="center">jsbridge</h1>
 
-[![Android CI](https://github.com/kibotu/jsbridge/actions/workflows/android.yml/badge.svg)](https://github.com/kibotu/jsbridge/actions/workflows/android.yml)
-[![iOS CI](https://github.com/kibotu/jsbridge/actions/workflows/ios.yml/badge.svg)](https://github.com/kibotu/jsbridge/actions/workflows/ios.yml) [![Maven Central Version](https://img.shields.io/maven-central/v/net.kibotu/jsbridge)](https://central.sonatype.com/artifact/net.kibotu/jsbridge)
- [![](https://jitpack.io/v/kibotu/jsbridge.svg)](https://jitpack.io/#kibotu/jsbridge) [![Swift Package Manager](https://img.shields.io/github/v/tag/kibotu/jsbridge?label=SPM&color=orange)](https://github.com/kibotu/jsbridge/tags)
+<p align="center">
+  One promise-based JavaScript API for web pages inside Android and iOS apps.<br>
+  Write <code>await jsbridge.call('deviceInfo')</code> once. Skip the platform <code>if</code> statements.
+</p>
 
+<p align="center">
+  <a href="https://github.com/kibotu/jsbridge/actions/workflows/android.yml"><img alt="Android CI" src="https://github.com/kibotu/jsbridge/actions/workflows/android.yml/badge.svg"></a>
+  <a href="https://github.com/kibotu/jsbridge/actions/workflows/ios.yml"><img alt="iOS CI" src="https://github.com/kibotu/jsbridge/actions/workflows/ios.yml/badge.svg"></a>
+  <a href="https://github.com/kibotu/jsbridge/actions/workflows/web.yml"><img alt="Web CI" src="https://github.com/kibotu/jsbridge/actions/workflows/web.yml/badge.svg"></a>
+  <a href="https://central.sonatype.com/artifact/net.kibotu/jsbridge"><img alt="Maven Central" src="https://img.shields.io/maven-central/v/net.kibotu/jsbridge"></a>
+  <a href="https://jitpack.io/#kibotu/jsbridge"><img alt="JitPack" src="https://jitpack.io/v/kibotu/jsbridge.svg"></a>
+  <a href="https://github.com/kibotu/jsbridge/tags"><img alt="Swift Package Manager" src="https://img.shields.io/github/v/tag/kibotu/jsbridge?label=SPM&color=orange"></a>
+</p>
 
-A unified, promise-based JavaScript bridge for bidirectional communication between web content and native mobile apps. `window.jsbridge` works identically on Android and iOS. Life's too short for platform `if` statements.
-
----
-
-## Table of Contents
-
-- [Why jsbridge?](#why-jsbridge)
-- [Architecture](#architecture)
-- [For Web Developers](#for-web-developers)
-  - [Quick Start](#quick-start)
-  - [Core API](#core-api)
-  - [What You Get Out of the Box](#what-you-get-out-of-the-box)
-  - [Message Shape](#message-shape)
-  - [Actions Reference](#actions-reference)
-  - [Edge-to-Edge & Safe Area](#edge-to-edge--safe-area)
-  - [Focus Awareness](#focus-awareness)
-  - [Feature Detection](#feature-detection)
-  - [Error Handling](#error-handling)
-  - [Testing & Debugging](#testing--debugging)
-  - [TypeScript](#typescript)
-  - [Tips](#tips)
-  - [Platform Support](#platform-support)
-- [For Native App Developers](#for-native-app-developers)
-  - [How It Works](#how-it-works)
-  - [Android Setup](#android-setup)
-  - [iOS Setup](#ios-setup)
-  - [Sending Lifecycle Events](#sending-lifecycle-events)
-  - [Adding a New Command](#adding-a-new-command)
-  - [Native-Driven Safe Area CSS](#native-driven-safe-area-css)
-  - [Multiple Bridges Per WebView](#multiple-bridges-per-webview)
-  - [Changing the Bridge Name](#changing-the-bridge-name)
-  - [Response Format](#response-format)
-  - [Message Protocol](#message-protocol)
-  - [Security](#security)
-- [Project Structure](#project-structure)
-  - [Building](#building)
-- [Performance](#performance)
-- [Changelog](#changelog)
-- [Support](#support)
-- [License](#license)
+<p align="center">
+  <a href="https://kibotu.github.io/jsbridge/">Live demo</a> ·
+  <a href="#for-web-developers">Web</a> ·
+  <a href="#for-app-developers">Android &amp; iOS</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
 ---
 
 ## Why jsbridge?
 
-If you've built web content inside a native app, you know the drill. Android gives you `@JavascriptInterface` with string callbacks. iOS gives you `WKScriptMessageHandler` with a completely different API. You end up with code like this:
+A WebView in a native app has no common way to talk to its host. Android gives you [`@JavascriptInterface`][android-js-interface]. iOS gives you [`WKScriptMessageHandler`][ios-script-handler]. The two APIs differ in transport, data types and callbacks.
+
+Without jsbridge, every feature needs code like this:
 
 ```js
-// The "before" world. We've all been here.
-function getDeviceInfo() {
+function getDeviceInfo(done) {
   if (window.AndroidBridge) {
-    const cbName = 'onDeviceInfo_' + Date.now();
-    window[cbName] = function (json) {
-      const result = JSON.parse(json); // Android sends strings, naturally
-      delete window[cbName];
-      doSomethingWith(result);
-    };
-    window.AndroidBridge.getDeviceInfo(cbName);
+    const cb = 'onDeviceInfo_' + Date.now();
+    window[cb] = (json) => { delete window[cb]; done(JSON.parse(json)); };
+    window.AndroidBridge.getDeviceInfo(cb);
   } else if (window.webkit?.messageHandlers?.nativeBridge) {
-    window.onDeviceInfoResult = function (result) {
-      doSomethingWith(result); // iOS sends objects, because why be consistent
-    };
+    window.onDeviceInfoResult = done;
     window.webkit.messageHandlers.nativeBridge.postMessage({
       action: 'getDeviceInfo', callbackName: 'onDeviceInfoResult'
     });
   } else {
-    doSomethingWith({ platform: 'desktop' }); // shrug
+    done({ platform: 'desktop' });
   }
 }
 ```
 
-With jsbridge, the same thing is:
+With jsbridge:
 
 ```js
 const info = await jsbridge.call('deviceInfo');
 ```
 
-That's it. One line. Both platforms. Promises. No callbacks polluting `window`. No platform sniffing.
+- **One API, both platforms.** `bridge.js` is the single source of truth. Android and iOS inject the same file.
+- **Promises, not callbacks.** Use `async`/`await`. Nothing pollutes `window`.
+- **Feature detection, not version checks.** Ask `jsbridge.supports('haptic.pattern')`. Do not parse app versions.
+- **Batteries included.** Toasts, alerts, haptics, secure storage, safe area, system bars and more.
+- **Easy to extend.** A new native command is about 15 lines. See [Add a command](#add-a-command).
+- **Easy to test.** In a desktop browser, a mock handler replaces native.
 
-### The version hell problem
+<p align="center">
+  <img src="docs/preview.png" alt="The jsbridge demo page running inside an app" width="320">
+</p>
 
-Without a unified versioning scheme, backwards compatibility turns into archaeology:
-
-```js
-// Real code from a real codebase. Names changed to protect the guilty.
-if (platform === 'android' && semver.gte(appVersion, '4.2.0')) {
-  AndroidBridge.showToastV2(JSON.stringify({ message, style: 'custom' }));
-} else if (platform === 'android' && semver.gte(appVersion, '3.0.0')) {
-  AndroidBridge.showToast(message);
-} else if (platform === 'ios' && semver.gte(appVersion, '4.1.0')) {
-  webkit.messageHandlers.toast.postMessage({ message, style: 'custom' });
-} else if (platform === 'ios') {
-  webkit.messageHandlers.nativeBridge.postMessage({ type: 'toast', message });
-} else {
-  alert(message); // desktop fallback, the last refuge
-}
-```
-
-With jsbridge, you ask the host what it can do instead of guessing from a version number:
-
-```js
-if (jsbridge.supports('showToast.style')) {
-  await jsbridge.call('showToast', { message, style: 'custom' });
-} else {
-  await jsbridge.call('showToast', { message });
-}
-```
-
-No semver parsing, no platform branching, no archaeological expeditions into old release notes. The host lists what it implements; your page checks for the one thing it needs.
-
-### What jsbridge gives you
-
-- **One API, both platforms.** Write bridge calls once. Ship everywhere.
-- **Promises, not callbacks.** `async`/`await` all the way down. No more `window.callbackXyz_12345`.
-- **Feature detection.** `supports('name')` instead of platform x version matrices.
-- **Built-in commands.** Navigation bars, system bars, safe area, haptics, storage, analytics. Ready to go.
-- **Easy to extend.** Adding a new native command is ~50 lines. You never touch bridge infrastructure.
-- **Easy to test.** Mock handler for desktop, debug logging, browser DevTools support.
-
----
-
-## Architecture
+## How it works
 
 ```mermaid
-graph TB
-    subgraph web [Web Layer]
-        WebApp["Your web app"]
-        API["window.jsbridge\n.call() / .on()"]
-    end
-
-    subgraph js [bridge.js — injected at document start]
-        PromiseMgmt["Promise management\nTimeouts / IDs"]
-        PlatformDetect["Platform auto-detection"]
-    end
-
-    subgraph native [Native Layer]
-        AndroidBridge["Android Bridge\n@JavascriptInterface\npostMessage / evaluateJavascript"]
-        iOSBridge["iOS Bridge\nWKScriptMessageHandler\npostMessage / evaluateJavaScript"]
-    end
-
-    subgraph commands [Command Registry — strategy pattern]
-        Cmds["DeviceInfo · Navigation · Toast\nHaptic · Storage · Insets · ..."]
-    end
-
-    subgraph output [Side Effects]
-        SafeArea["Safe Area CSS\n--bridge-inset-* variables"]
-        Lifecycle["Lifecycle Events\nfocused / defocused"]
-        Response["Promise Resolution\n{ id, data } or { id, error }"]
-    end
-
-    WebApp --> API
-    API --> PromiseMgmt
-    PromiseMgmt --> PlatformDetect
-    PlatformDetect --> AndroidBridge
-    PlatformDetect --> iOSBridge
-    AndroidBridge --> Cmds
-    iOSBridge --> Cmds
-    Cmds --> Response
-    Cmds --> SafeArea
-    Cmds --> Lifecycle
-    Response --> API
-    SafeArea --> WebApp
-    Lifecycle --> API
+flowchart LR
+    Web["Your web page<br/>window.jsbridge"] -- "call() → promise" --> Native["Native host<br/>Android · iOS"]
+    Native -- "resolve / reject" --> Web
+    Native -- "sendToWeb() → on()" --> Web
+    Native --> Commands["Commands<br/>one class per action"]
 ```
 
-The key insight: `bridge.js` is the single source of truth. Both platforms inject the exact same JavaScript. Native just templates in the bridge name and schema version. Web developers see one global (`window.jsbridge`), native developers see their familiar APIs (`@JavascriptInterface` / `WKScriptMessageHandler`).
+1. Your page calls `jsbridge.call(action, content)`. The call returns a promise.
+2. `bridge.js` sends a message to the host through the platform channel.
+3. The host runs the command that matches `action`. It answers with `{ id, data }` or `{ id, error }`.
+4. `bridge.js` resolves or rejects the promise.
+
+The host can also push messages to the page. Register a handler with `jsbridge.on()`.
 
 ---
 
-## For Web Developers
+## For web developers
 
-### Quick Start
+Your page needs no SDK and no build step. The host app injects `window.jsbridge` before your scripts run.
+
+### Try it
+
+1. Open the [live demo](https://kibotu.github.io/jsbridge/) in any browser. It uses the desktop mock.
+2. Or open [`index.html`](index.html) from this repository.
+3. To see the real thing, run a [sample app](#build-and-test) and open the same page in its WebView.
+
+### Quick start
 
 ```js
-await jsbridge.ready();
+await jsbridge.ready();                       // 1. Wait for the bridge.
 
-const info = await jsbridge.call('deviceInfo');
+const info = await jsbridge.call('deviceInfo'); // 2. Ask native.
 console.log(info.platform, info.model);
 
-jsbridge.on((msg) => {
-  const { action, content } = msg.data;
+jsbridge.on(({ data: { action, content } }) => { // 3. Listen to native.
   if (action === 'lifecycle' && content.event === 'focused') refreshData();
 });
 ```
 
-That's the whole API. One method to call native (`call`), one to listen (`on`). Everything else is just different `action` strings.
+That is the whole API: `call` sends, `on` listens. Everything else is an `action` string.
 
-### Core API
+### API
 
-| Method | Description |
+| Member | Description |
 |--------|-------------|
-| `jsbridge.ready()` | Returns a Promise that resolves when the bridge is initialized. Call this first. |
-| `jsbridge.call(action, content?, opts?)` | Sends a request to native. Returns a Promise with the response. |
-| `jsbridge.on(fn)` | Registers a handler for native-to-web messages. Supports multiple handlers. |
-| `jsbridge.off(fn)` | Removes a previously registered handler. |
-| `jsbridge.cancelAll()` | Rejects all pending promises and clears timeouts. Useful for navigation teardown. |
-| `jsbridge.setDebug(bool)` | Enables verbose console logging. |
-| `jsbridge.setMockHandler(fn)` | Registers a mock for desktop browser testing. |
-| `jsbridge.platform` | `'android'` \| `'ios'` \| `'desktop'` (read-only) |
-| `jsbridge.supports(feature)` | `true` if the host implements `feature`. Synchronous. See [Feature Detection](#feature-detection). |
-| `jsbridge.features` | Frozen array of every feature the host declared (read-only) |
-| `jsbridge.getStats()` | Returns `{ pendingRequests, platform, features, handlers, debugEnabled }` |
+| `jsbridge.ready()` | Resolves when the bridge is initialized. Call it first. |
+| `jsbridge.call(action, content?, opts?)` | Sends a request to native. Returns a promise. `opts.timeout` defaults to 30 000 ms. |
+| `jsbridge.on(fn)` / `jsbridge.off(fn)` | Adds or removes a handler for native-to-web messages. Several handlers can exist. |
+| `jsbridge.supports(feature)` | Returns `true` if the host implements `feature`. Synchronous and always safe. |
+| `jsbridge.features` | Frozen array of all features the host declared. |
+| `jsbridge.platform` | `'android'`, `'ios'` or `'desktop'`. |
+| `jsbridge.cancelAll()` | Rejects all pending promises. Use it when a screen closes. |
+| `jsbridge.setDebug(bool)` | Logs every message to the console. |
+| `jsbridge.setMockHandler(fn, { features }?)` | Replaces native in a desktop browser. See [Test without a device](#test-without-a-device). |
+| `jsbridge.getStats()` | Returns `{ pendingRequests, platform, features, handlers, debugEnabled }`. |
 
-### What You Get Out of the Box
+`call()` also accepts a full message, `call({ data: { action, content } }, opts)`, for older pages.
 
-All of these work on both platforms with zero native setup (just use `DefaultCommands.all()`):
+### Built-in actions
 
-| Category | Actions | What it does |
-|----------|---------|--------------|
-| **Navigation** | `topNavigation`, `bottomNavigation`, `systemBars`, `systemBarsInfo` | Show/hide the top toolbar, bottom tab bar, status bar, system navigation. Query individual bar dimensions and visibility. Web controls native chrome. |
-| **UI** | `showToast`, `showAlert`, `haptic`, `copyToClipboard` | Native toast, alert dialogs, haptic feedback, clipboard. Things web can't do well on its own. |
-| **Device** | `deviceInfo`, `networkState`, `openSettings`, `requestPermissions` | Platform, OS version, model, connectivity, native settings screen, runtime permissions. |
-| **Storage** | `saveSecureData`, `loadSecureData`, `removeSecureData` | Encrypted storage backed by Keychain (iOS) and EncryptedSharedPreferences (Android). |
-| **Layout** | `insets`, `systemBarsInfo` + CSS custom properties | Safe area insets (dp/pt), keyboard height, individual bar dimensions and visibility. Pushed automatically as CSS variables. |
-| **Lifecycle** | `lifecycle` events via `on()` | Know when your screen is actually visible (not buried under modals or other tabs). |
-| **Analytics** | `trackEvent`, `trackScreen` | Fire-and-forget. Don't even `await` these. |
-| **Navigation** | `navigation` | Load URLs in-app or externally, go back. |
+All actions work on Android and iOS. Pass `DefaultCommands.all()` on the native side to enable them.
 
-That's a lot of native capability accessible from a single `await jsbridge.call(...)`.
+| Area | Actions | Notes |
+|------|---------|-------|
+| Device | `deviceInfo`, `networkState`, `openSettings`, `requestPermissions` | Platform, OS, model, connectivity, settings screen, runtime permissions. |
+| UI | `showToast`, `showAlert`, `haptic`, `copyToClipboard` | Native versions of things the web does poorly. |
+| Chrome | `topNavigation`, `bottomNavigation`, `systemBars` | Your page controls the native bars. `systemNavigation` exists on Android only. |
+| Layout | `insets`, `systemBarsInfo` | Safe area, keyboard and bar sizes in dp (Android) or pt (iOS). |
+| Navigation | `navigation` | Open a URL in the app or in the browser. Go back. |
+| Storage | `saveSecureData`, `loadSecureData`, `removeSecureData` | [Keychain][ios-keychain] on iOS. Encrypted storage on Android. |
+| Analytics | `trackEvent`, `trackScreen` | Fire and forget. Do not `await`. |
+| App | `refresh`, `themeChanged` | Ask the host to refresh data or relay a theme choice. The host app decides what to do. |
+| Events | `lifecycle` (native → web) | See [Know when your page is visible](#know-when-your-page-is-visible). |
 
-### Message Shape
-
-```js
-await jsbridge.call('actionName', { key: 'value' }, { timeout: 5000 });
-```
-
-`call()` also accepts the full message object for backward compatibility:
+Examples:
 
 ```js
-await jsbridge.call({
-  data: {
-    action: 'actionName',       // what to do
-    content: { key: 'value' }   // optional payload
-  }
-}, { timeout: 5000 });          // optional timeout (default 30s)
-```
-
-### Actions Reference
-
-#### Device & System
-
-```js
-const info = await jsbridge.call('deviceInfo');
-// → { platform, osVersion, model, appVersion, ... }
-
-const net = await jsbridge.call('networkState');
-// → { connected: true, type: 'wifi' }
-
-await jsbridge.call('openSettings');
-
-const insets = await jsbridge.call('insets');
-// → { statusBar: { height, visible }, systemNavigation: {...}, keyboard: {...},
-//     safeArea: { top, right, bottom, left } }
-// All values in dp (Android) / pt (iOS)
-// safeArea.top = statusBar + topNavigation (when visible)
-// safeArea.bottom = systemNavigation + bottomNavigation (when visible)
-
-const bars = await jsbridge.call('systemBarsInfo');
-// → { statusBar: { height, isVisible }, topNavigation: { height, isVisible },
-//     bottomNavigation: { height, isVisible }, systemNavigation: { height, isVisible } }
-```
-
-#### UI
-
-```js
-await jsbridge.call('showToast', { message: 'Hey!', duration: 'short' });
-await jsbridge.call('showAlert', { title: 'Hi', message: 'Hello', buttons: ['OK', 'Cancel'] });
-await jsbridge.call('haptic', { vibrate: true });
-await jsbridge.call('copyToClipboard', { text: 'copied!' });
-```
-
-#### Navigation
-
-```js
-// Top navigation bar
+await jsbridge.call('showToast', { message: 'Saved', duration: 'short' });
+await jsbridge.call('showAlert', { title: 'Delete?', message: 'This cannot be undone.', buttons: ['Delete', 'Cancel'] });
 await jsbridge.call('topNavigation', { isVisible: true, title: 'Home', showUpArrow: false });
-
-// Bottom navigation bar
-await jsbridge.call('bottomNavigation', { isVisible: false });
-
-// System bars (iOS handles status bar; system navigation is Android-only)
 await jsbridge.call('systemBars', { showStatusBar: false, showSystemNavigation: false });
-
-// URL navigation
 await jsbridge.call('navigation', { url: 'https://example.com', external: true });
-await jsbridge.call('navigation', { goBack: true });
-```
 
-#### Secure Storage
-
-```js
 await jsbridge.call('saveSecureData', { key: 'token', value: 'abc123' });
 const { value } = await jsbridge.call('loadSecureData', { key: 'token' });
-await jsbridge.call('removeSecureData', { key: 'token' });
+
+jsbridge.call('trackEvent', { event: 'button_click', params: { screen: 'home' } }); // no await
 ```
 
-Backed by Keychain (iOS) and EncryptedSharedPreferences (Android).
+### Layout under system bars
 
-#### Analytics (Fire-and-Forget)
-
-Don't `await` these. No response needed, zero latency:
-
-```js
-jsbridge.call('trackEvent', { event: 'button_click', params: { screen: 'home' } });
-jsbridge.call('trackScreen', { screenName: 'Home' });
-```
-
-### Edge-to-Edge & Safe Area
-
-Modern mobile apps use edge-to-edge layouts. Your web content extends behind status bars and navigation bars. Great for immersive experiences like image galleries or video players. Terrible for buttons your users need to actually tap.
-
-jsbridge solves this with native-driven CSS custom properties. Native automatically pushes inset values whenever bars change, the device rotates, or the keyboard appears. You don't call anything. Just use CSS:
+Native pushes the safe area to your page as [CSS custom properties][mdn-custom-properties]. This happens when bars change, the device rotates or the keyboard opens. You do not call anything.
 
 ```css
 body {
@@ -325,99 +166,55 @@ body {
 }
 ```
 
-The triple fallback (`bridge variable` → `env()` → `0px`) means this works everywhere: in the app, in a regular browser, on desktop.
+The fallback chain is the bridge value, then [`env()`][mdn-env], then `0px`. The same CSS works in the app and in a normal browser.
 
-**Available CSS custom properties:**
+| Property | Meaning |
+|----------|---------|
+| `--bridge-inset-top` / `-bottom` | Combined inset: status bar and top navigation, or system navigation and bottom navigation. |
+| `--bridge-inset-left` / `-right` | Side insets for landscape and foldables. |
+| `--bridge-status-bar` | Status bar height. |
+| `--bridge-top-nav` / `--bridge-bottom-nav` | Native top bar and bottom tab bar heights. |
+| `--bridge-system-nav` | System navigation bar height (Android). |
 
-| Property | What it represents |
-|----------|-------------------|
-| `--bridge-inset-top` | Combined top inset (status bar + top nav when relevant) |
-| `--bridge-inset-bottom` | Combined bottom inset (bottom nav + system nav when relevant) |
-| `--bridge-inset-left` | Left inset (landscape, foldables) |
-| `--bridge-inset-right` | Right inset (landscape, foldables) |
-| `--bridge-status-bar` | Status bar height alone |
-| `--bridge-top-nav` | Top navigation bar height alone |
-| `--bridge-bottom-nav` | Bottom tab bar height alone |
-| `--bridge-system-nav` | System navigation bar height alone (Android) |
+When you hide the native top bar, `--bridge-inset-top` grows to cover the status bar. When you show it again, the value shrinks. You do not track this yourself.
 
-**Example: immersive gallery with safe interactive elements**
+Need the numbers in JavaScript, for example for a canvas? Query them:
 
 ```js
-// Go full-screen: hide all native chrome
-await jsbridge.call('topNavigation', { isVisible: false });
-await jsbridge.call('bottomNavigation', { isVisible: false });
-await jsbridge.call('systemBars', { showStatusBar: false, showSystemNavigation: false });
+const { safeArea, statusBar, keyboard } = await jsbridge.call('insets');
+const bars = await jsbridge.call('systemBarsInfo'); // { statusBar: { height, isVisible }, ... }
 ```
 
-```css
-.gallery {
-  /* Content goes edge-to-edge -- behind status bar, behind system nav */
-  position: fixed;
-  inset: 0;
-}
+<table>
+  <tr>
+    <th>Android</th>
+    <th>iOS</th>
+  </tr>
+  <tr>
+    <td><img src="docs/android-insets.gif" alt="Android: insets update when bars change" width="260"></td>
+    <td><img src="docs/ios-insets.gif" alt="iOS: insets update when bars change" width="260"></td>
+  </tr>
+</table>
 
-.gallery-close-button {
-  /* But the close button stays in the safe area so users can actually tap it */
-  position: fixed;
-  top: calc(12px + var(--bridge-inset-top, env(safe-area-inset-top, 0px)));
-  right: 12px;
-}
+### Know when your page is visible
 
-.gallery-controls {
-  /* Bottom controls respect the system navigation area */
-  position: fixed;
-  bottom: calc(12px + var(--bridge-inset-bottom, env(safe-area-inset-bottom, 0px)));
-  left: 0;
-  right: 0;
-}
-```
+A WebView does not always know when it is covered. A bottom sheet, a modal, a native tab switch or a pushed screen hides your page. The browser fires no [`visibilitychange`][mdn-visibility] event in these cases.
 
-**Automatic safe padding based on bar visibility.** When you toggle the top or bottom navigation, native automatically recalculates and pushes updated CSS values. Hide the top bar? `--bridge-inset-top` updates to include the status bar height so your content doesn't slip underneath it. Show it again? Inset goes back to `0` because the native bar already covers the status bar. You don't manage any of this. It just works.
-
-For JavaScript layout calculations (e.g. canvas sizing), query on demand:
+The host tells you instead:
 
 ```js
-const insets = await jsbridge.call('insets');
-// → { safeArea: { top: 86.13, bottom: 14.93, ... }, statusBar: { height: 30.13, visible: true }, ... }
-// All values in dp (Android) / pt (iOS)
-
-// For individual bar dimensions and visibility:
-const bars = await jsbridge.call('systemBarsInfo');
-// → { statusBar: { height: 30.13, isVisible: true }, topNavigation: { height: 56.0, isVisible: true }, ... }
-```
-
-### Focus Awareness
-
-Here's a fun problem: your WebView is happily displaying content, but the user opens a bottom sheet, a modal dialog, switches to another tab in a ViewPager, or navigates to a different screen that covers your WebView. The web content has no idea. No `visibilitychange` event, no `blur`, nothing. As far as your JavaScript knows, the page is still in the foreground.
-
-jsbridge fixes this. Native sends `lifecycle` events whenever your screen gains or loses focus:
-
-```js
-jsbridge.on((msg) => {
-  const { action, content } = msg.data;
-  if (action === 'lifecycle') {
-    if (content.event === 'focused') {
-      refreshData();     // screen is visible again -- refresh stale data
-      resumeAnimations();
-    }
-    if (content.event === 'defocused') {
-      pauseAnimations(); // save battery, stop polling
-    }
-  }
+jsbridge.on(({ data: { action, content } }) => {
+  if (action !== 'lifecycle') return;
+  if (content.event === 'focused') { refreshData(); resumeAnimations(); }
+  if (content.event === 'defocused') { pauseAnimations(); }
 });
 ```
 
-This covers all the tricky cases:
-- Modal/dialog/bottom sheet presented over the WebView
-- User switches tabs in a native tab bar or ViewPager
-- App goes to background and comes back
-- Another ViewController/Fragment pushed on top of the WebView
+On `focused`, native also pushes the safe area again. Your layout stays correct after you return from another screen. Register `on()` once at startup and route by `action`.
 
-On `focused`, native also re-pushes safe area CSS, so your layout is always correct after returning from another screen.
+### Detect features, not versions
 
-### Feature Detection
-
-There is no protocol version. The host tells the page what it implements, and the page asks:
+There is no protocol version. The host declares what it can do. Your page checks for the one thing it needs.
 
 ```js
 if (jsbridge.supports('haptic.pattern')) {
@@ -427,527 +224,329 @@ if (jsbridge.supports('haptic.pattern')) {
 }
 ```
 
-- Every registered command contributes its action name (`haptic`). Commands that grow later declare finer names (`haptic.pattern`).
-- A changed capability gets a **new name**. Names never carry numbers, so there is nothing to compare.
-- `supports()` is synchronous and always safe to call: unknown names, `null` and non-strings return `false`.
-- `jsbridge.features` lists everything, which is handy in the console.
-- Calling an action the host doesn't have rejects with `UNKNOWN_ACTION`, so a missed check fails loudly.
-- In a desktop browser nothing is supported until you register a mock: `jsbridge.setMockHandler(fn, { features: ['haptic'] })`.
+- Each command declares its action name, for example `haptic`. A command that grows declares finer names, for example `haptic.pattern`.
+- A changed capability gets a **new name**. Names never contain numbers.
+- Unknown names, `null` and non-strings return `false`.
+- Calling an unknown action rejects with `UNKNOWN_ACTION`. A missing check fails loudly.
+- Run `jsbridge.features` in the console to see everything the host offers.
 
-### Error Handling
+### Handle errors
 
 ```js
 try {
-  const info = await jsbridge.call('deviceInfo', null, { timeout: 5000 });
+  await jsbridge.call('deviceInfo', null, { timeout: 5000 });
 } catch (e) {
-  if (e.message.includes('timeout')) console.warn('Native not responding');
-  else console.error(e.code, e.message);
+  if (e.message.includes('timeout')) console.warn('Native did not answer in time');
+  else console.error(e.code, e.message); // for example INVALID_PARAMETER
 }
 ```
 
-Errors have `.code` (e.g. `UNKNOWN_ACTION`, `INVALID_PARAMETER`) and `.message`.
+Every error has `.code` and `.message`.
 
-### Testing & Debugging
+### Test without a device
 
-#### Desktop Mock Mode
-
-When no native bridge is detected, `jsbridge.platform` returns `'desktop'`. Register a mock to develop and test without a device:
+In a desktop browser, `jsbridge.platform` is `'desktop'` and no feature is supported. Register a mock to develop without an app:
 
 ```js
-jsbridge.setMockHandler((msg) => {
-  if (msg.data.action === 'deviceInfo') return { platform: 'desktop', model: 'Chrome' };
-  if (msg.data.action === 'networkState') return { connected: true, type: 'wifi' };
-  return {};
-});
+jsbridge.setMockHandler(
+  ({ data: { action } }) => {
+    if (action === 'deviceInfo') return { platform: 'desktop', model: 'Chrome' };
+    if (action === 'networkState') return { connected: true, type: 'wifi' };
+    return {};
+  },
+  { features: ['deviceInfo', 'networkState'] }
+);
 ```
 
-The `index.html` demo page does this automatically. Open it in any browser and everything works.
+### Debug on a device
 
-#### Chrome DevTools (Android)
+| Platform | Steps |
+|----------|-------|
+| Android | Enable USB debugging. Open `chrome://inspect`. Click **Inspect** under your WebView. See [Remote debug WebViews][chrome-webview-debug]. |
+| iOS | Enable **Settings → Safari → Advanced → Web Inspector**. In Safari on your Mac, open **Develop → your device → your WebView**. See [Inspecting iOS][safari-inspect]. |
 
-1. Connect your Android device via USB (enable USB debugging)
-2. Open `chrome://inspect` in Chrome
-3. Find your WebView under **Remote Target** and click **Inspect**
-4. In the Console tab, you have full access:
-
-```js
-// Try it live
-await jsbridge.call('deviceInfo')
-jsbridge.getStats()
-jsbridge.setDebug(true) // watch all messages fly by in the console
-```
-
-#### Safari Web Inspector (iOS)
-
-1. Enable Web Inspector on your device: Settings → Safari → Advanced → Web Inspector
-2. Connect via USB, open Safari on your Mac
-3. Develop menu → your device → your WebView
-4. Same console access as Chrome:
+Then try this in the console:
 
 ```js
-await jsbridge.call('showToast', { message: 'Hello from Safari!' })
-jsbridge.platform  // → 'ios'
-```
-
-#### Debug Logging
-
-Turn on verbose logging anywhere to see every message going back and forth:
-
-```js
-jsbridge.setDebug(true);
-// Now every call(), response, and native message logs to the console
-// [jsbridge] Calling native: { id: "msg_...", data: { action: "deviceInfo" } }
-// [jsbridge] Received response: { id: "msg_...", data: { platform: "Android", ... } }
-```
-
-`jsbridge.getStats()` gives you a snapshot of the bridge state. Handy for debugging stuck promises:
-
-```js
-jsbridge.getStats()
-// → { pendingRequests: 0, platform: 'android', features: ['deviceInfo', ...], handlers: 1, debugEnabled: true }
+jsbridge.setDebug(true);          // log every message
+await jsbridge.call('deviceInfo');
+jsbridge.getStats();              // find stuck promises: { pendingRequests: 0, ... }
 ```
 
 ### TypeScript
 
-```typescript
-interface CallOptions { timeout?: number; }
+```ts
+interface CallOptions { timeout?: number }
+type Message = { data: { action: string; content?: unknown } };
 
 interface Bridge {
   readonly features: readonly string[];
-  platform: 'android' | 'ios' | 'desktop';
+  readonly platform: 'android' | 'ios' | 'desktop';
   ready(): Promise<void>;
   supports(feature: string): boolean;
   call<T = unknown>(action: string, content?: unknown, opts?: CallOptions): Promise<T>;
-  call<T = unknown>(msg: { data: { action: string; content?: unknown } }, opts?: CallOptions): Promise<T>;
-  on(handler: (msg: { data: { action: string; content?: unknown } }) => void): void;
-  off(handler: Function): void;
+  call<T = unknown>(msg: Message, opts?: CallOptions): Promise<T>;
+  on(handler: (msg: Message) => void): void;
+  off(handler: (msg: Message) => void): void;
   cancelAll(): void;
   setDebug(enabled: boolean): void;
-  setMockHandler(handler: Function | null, opts?: { features?: string[] }): void;
+  setMockHandler(handler: ((msg: Message) => unknown) | null, opts?: { features?: string[] }): void;
   getStats(): { pendingRequests: number; platform: string; features: readonly string[]; handlers: number; debugEnabled: boolean };
 }
 
 declare global { interface Window { jsbridge: Bridge } }
 ```
 
-### Tips
+### Good habits
 
-- **Always** `await jsbridge.ready()` before anything else
-- **Set timeouts** on calls: `{ timeout: 5000 }`. 30s default is generous
-- **Don't await analytics.** Fire-and-forget is faster
-- **Feature-detect, don't version-sniff**: `if (jsbridge.supports('haptic.pattern')) { ... }`
-- **Cache device info.** It doesn't change mid-session
-- **Batch with `Promise.all()`** for parallel operations
-- **Register `on()` once** during init, route by `action`
-
-### Platform Support
-
-| Action | iOS | Android |
-|--------|:---:|:-------:|
-| `deviceInfo` | ✅ | ✅ |
-| `networkState` | ✅ | ✅ |
-| `openSettings` | ✅ | ✅ |
-| `insets` | ✅ | ✅ |
-| `systemBarsInfo` | ✅ | ✅ |
-| `showToast` | ✅ | ✅ |
-| `showAlert` | ✅ | ✅ |
-| `topNavigation` | ✅ | ✅ |
-| `bottomNavigation` | ✅ | ✅ |
-| `systemBars` | ✅ | ✅ |
-| `haptic` | ✅ | ✅ |
-| `navigation` | ✅ | ✅ |
-| `copyToClipboard` | ✅ | ✅ |
-| `lifecycleEvents` | ✅ | ✅ |
-| `saveSecureData` | ✅ | ✅ |
-| `loadSecureData` | ✅ | ✅ |
-| `removeSecureData` | ✅ | ✅ |
-| `requestPermissions` | ✅ | ✅ |
-| `trackEvent` | ✅ | ✅ |
-| `trackScreen` | ✅ | ✅ |
+- Call `await jsbridge.ready()` first.
+- Set a `timeout` on calls that matter. Five seconds is plenty.
+- Do not `await` analytics. Do not wait for what you do not need.
+- Cache `deviceInfo`. It does not change during a session.
+- Run independent calls in parallel with [`Promise.all()`][mdn-promise-all].
+- Call `cancelAll()` when a screen closes.
 
 ---
 
-## For Native App Developers
+## For app developers
 
-### How It Works
+You add the library, hand it your WebView and pick the commands you want. Each platform has a full guide:
 
-The bridge is a thin decorator around each platform's native WebView messaging:
+|  | Library | Guide | Requirements |
+|--|---------|-------|--------------|
+| **Android** | `net.kibotu:jsbridge` (Kotlin) | [`android/README.md`](android/README.md) | API 24+ |
+| **iOS** | `JSBridge` (Swift package) | [`ios/README.md`](ios/README.md) | iOS 16+, Swift 6, Xcode 16 |
 
-- **Android**: `@JavascriptInterface` on a `postMessage(String)` method + `evaluateJavascript()` for responses
-- **iOS**: `WKScriptMessageHandler` + `evaluateJavaScript()` for responses
-
-Both platforms inject the same JavaScript (`bridge.js`) into the WebView at document start. The JS auto-detects the platform and routes messages accordingly. Web developers see one API; you see your native APIs.
-
-### Android Setup
-
-Add the `jsbridge` library module to your project:
+### Android
 
 ```kotlin
-// settings.gradle.kts
-include(":jsbridge")
-
-// app/build.gradle.kts
+// build.gradle.kts
 dependencies {
-    implementation(project(":jsbridge"))
+    implementation("net.kibotu:jsbridge:<version>") // see the Maven Central badge
 }
 ```
 
-Wire it up with explicit command configuration:
-
 ```kotlin
-// All default commands
 val bridge = JavaScriptBridge.inject(
     webView = webView,
     commands = DefaultCommands.all()
 )
-
-// Or pick only the commands you need
-val bridge = JavaScriptBridge.inject(
-    webView = webView,
-    commands = listOf(
-        DeviceInfoCommand(),
-        ShowToastCommand(),
-        HapticCommand(),
-    )
-)
-
-// Send events to web
-bridge.sendToWeb(action = "lifecycle", content = mapOf("event" to "focused"))
 ```
 
-### iOS Setup
+The library also ships on [JitPack](https://jitpack.io/#kibotu/jsbridge). Secure storage needs an extra dependency. See [Secure storage](android/README.md#secure-storage).
 
-Add the `JSBridge` Swift Package (local dependency):
+### iOS
+
+Add the package in Xcode (**File → Add Package Dependencies…**) or in `Package.swift`:
 
 ```swift
-// In your Package.swift or Xcode project
-.package(path: "../JSBridge")
+.package(url: "https://github.com/kibotu/jsbridge", from: "1.0.0")
+// then: .product(name: "JSBridge", package: "jsbridge")
 ```
-
-Wire it up with explicit command configuration:
 
 ```swift
 import JSBridge
 
-// All default commands
 let bridge = JavaScriptBridge(
     webView: webView,
     viewController: self,
     commands: DefaultCommands.all()
 )
-
-// Or pick only the commands you need
-let bridge = JavaScriptBridge(
-    webView: webView,
-    viewController: self,
-    commands: [
-        DeviceInfoCommand(),
-        ShowToastCommand(),
-        HapticCommand(),
-    ]
-)
-
-// Send events to web
-bridge.sendToWeb(action: "lifecycle", content: ["event": "focused"])
 ```
 
-### Sending Lifecycle Events
+### Pick your commands
 
-Web content has no way to know when it's been covered by a modal, buried in a tab, or returned to after a navigation stack change. It's your job to tell it. Luckily, it's one line:
+`DefaultCommands.all()` enables everything. To expose less, list the commands you want:
 
 ```kotlin
-// Android -- in your Activity or Fragment
+// Android
+commands = listOf(DeviceInfoCommand(), ShowToastCommand(), HapticCommand())
+```
+
+```swift
+// iOS
+commands: [DeviceInfoCommand(), ShowToastCommand(), HapticCommand()]
+```
+
+An action without a command rejects with `UNKNOWN_ACTION`. The page can see what exists in `jsbridge.features`.
+
+### Send events to the page
+
+```kotlin
+bridge.sendToWeb(action = "lifecycle", content = mapOf("event" to "focused"))   // Android
+```
+
+```swift
+bridge.sendToWeb(action: "lifecycle", content: ["event": "focused"])            // iOS
+```
+
+### Send focus events
+
+Tell the page when it becomes visible or hidden. Push the safe area again on focus.
+
+```kotlin
+// Android: Activity or Fragment
 override fun onWindowFocusChanged(hasFocus: Boolean) {
     super.onWindowFocusChanged(hasFocus)
     bridge.sendToWeb("lifecycle", mapOf("event" to if (hasFocus) "focused" else "defocused"))
-    if (hasFocus) SafeAreaService.pushTobridge(bridge) // re-push safe area on return
+    if (hasFocus) SafeAreaService.pushTobridge(bridge)
 }
 ```
 
 ```swift
-// iOS -- in your ViewController (or use the WindowFocusObserver protocol)
+// iOS: UIViewController
 func onWindowFocusChanged(hasFocus: Bool) {
-    if hasFocus {
-        bridge.sendToWeb(action: "lifecycle", content: ["event": "focused"])
-        SafeAreaService.shared.pushToBridge(bridge)
-    } else {
-        bridge.sendToWeb(action: "lifecycle", content: ["event": "defocused"])
-    }
+    bridge.sendToWeb(action: "lifecycle", content: ["event": hasFocus ? "focused" : "defocused"])
+    if hasFocus { SafeAreaService.shared.pushToBridge(bridge) }
 }
 ```
 
-The iOS sample app includes a `WindowFocusObserver` protocol that handles all the edge cases (modal presentation, tab switching, background/foreground, ViewPager) with a lightweight polling approach.
+On iOS, the `WindowFocusObserver` protocol detects modals, tab switches and app backgrounding for you. The [sample app](ios/BridgeSample) shows how.
 
-### Adding a New Command
+### Add a command
 
-This is the whole point of the architecture. Three steps, ~50 lines total:
+A command is one class. You do not touch bridge code.
 
-**1. Create the handler:**
+**1. Write it.**
 
 ```kotlin
 // Android
-class MyCommand : BridgeCommand {
-    override val action = "myAction"
+class GreetCommand : BridgeCommand {
+    override val action = "greet"
     override suspend fun handle(content: Any?): Any? {
-        val param = BridgeParsingUtils.parseString(content, "param")
-        return JSONObject().apply { put("result", "done: $param") }
+        val name = BridgeParsingUtils.parseString(content, "name") ?: "world"
+        return JSONObject().put("greeting", "hello, $name")
     }
 }
 ```
 
 ```swift
 // iOS
-class MyCommand: BridgeCommand {
-    let action = "myAction"
+class GreetCommand: BridgeCommand {
+    let action = "greet"
     func handle(content: [String: Any]?) async throws -> [String: Any]? {
-        let param = content?["param"] as? String ?? ""
-        return ["result": "done: \(param)"]
+        ["greeting": "hello, \(content?["name"] as? String ?? "world")"]
     }
 }
 ```
 
-**2. Register it when creating the bridge:**
+**2. Register it.**
+
+```kotlin
+commands = DefaultCommands.all() + GreetCommand()      // Android
+```
+
+```swift
+commands: DefaultCommands.all() + [GreetCommand()]     // iOS
+```
+
+**3. Call it.**
+
+```js
+const { greeting } = await jsbridge.call('greet', { name: 'Ada' });
+```
+
+To declare finer features, override `features` in your command. For example, return `setOf("greet", "greet.formal")`. Return `null` from `handle` for fire and forget.
+
+### Several bridges, custom names
+
+One WebView can host several bridges. Each bridge has its own global name and command set. A different name also avoids a clash with other scripts.
 
 ```kotlin
 // Android
-val bridge = JavaScriptBridge.inject(
-    webView = webView,
-    commands = DefaultCommands.all() + MyCommand()
-)
+JavaScriptBridge.inject(webView, bridgeName = "jsbridge",  commands = DefaultCommands.all())
+JavaScriptBridge.inject(webView, bridgeName = "analytics", commands = listOf(TrackEventCommand(), TrackScreenCommand()))
 ```
 
 ```swift
 // iOS
-let bridge = JavaScriptBridge(
-    webView: webView, viewController: self,
-    commands: DefaultCommands.all() + [MyCommand()]
-)
-```
-
-**3. Call from web:**
-
-```js
-const result = await jsbridge.call('myAction', { param: 'hello' });
-```
-
-You didn't touch the bridge infrastructure, the JS layer, or any other command. That's the beauty of the command pattern.
-
-### Native-Driven Safe Area CSS
-
-Instead of making web poll for insets, native proactively pushes CSS custom properties:
-
-```kotlin
-// Android: called automatically on page load, bar changes, rotation, keyboard
-bridge.updateSafeAreaCSS(
-    insetTop = statusBarHeight + topNavHeight,
-    insetBottom = bottomNavHeight + systemNavHeight,
-    statusBarHeight = statusBarHeight,
-    topNavHeight = topNavHeight,
-    bottomNavHeight = bottomNavHeight,
-    systemNavHeight = systemNavHeight
-)
-```
-
-The `SafeAreaService` handles this automatically when using `DefaultCommands`. Top/bottom navigation commands recalculate and push updated CSS after every visibility change. The `BridgeWebViewClient` (Android) pushes on `onPageFinished`, and both platforms re-push when the window regains focus.
-
-This is strictly better than injecting `padding-top: Xpx !important` because web controls where and how to use the values.
-
-### Multiple Bridges Per WebView
-
-You can register multiple bridges with different names on the same WebView, each handling different actions:
-
-```kotlin
-// Android
-val mainBridge = JavaScriptBridge.inject(
-    webView, bridgeName = "jsbridge",
-    commands = listOf(DeviceInfoCommand(), ShowToastCommand())
-)
-val analyticsBridge = JavaScriptBridge.inject(
-    webView, bridgeName = "analytics",
-    commands = listOf(TrackEventCommand(), TrackScreenCommand())
-)
-```
-
-```swift
-// iOS
-let mainBridge = JavaScriptBridge(
-    webView: webView, viewController: self, bridgeName: "jsbridge",
-    commands: [DeviceInfoCommand(), ShowToastCommand(), HapticCommand()]
-)
-let analyticsBridge = JavaScriptBridge(
-    webView: webView, viewController: self, bridgeName: "analytics",
-    commands: [TrackEventCommand(), TrackScreenCommand()]
-)
+JavaScriptBridge(webView: webView, viewController: self, bridgeName: "jsbridge",  commands: DefaultCommands.all())
+JavaScriptBridge(webView: webView, viewController: self, bridgeName: "analytics", commands: [TrackEventCommand(), TrackScreenCommand()])
 ```
 
 ```js
-// Web -- each bridge is independent
 await jsbridge.call('deviceInfo');
 await analytics.call('trackEvent', { event: 'click' });
 ```
 
-### Changing the Bridge Name
+### Message format
 
-```kotlin
-// Android
-val bridge = JavaScriptBridge.inject(
-    webView = webView,
-    commands = DefaultCommands.all(),
-    bridgeName = "myApp"
-)
+Both platforms use the same JSON:
+
+```jsonc
+// web → native
+{ "id": "msg_1234567890_1_abc123xyz", "data": { "action": "showToast", "content": { "message": "Hello!" } } }
+
+// native → web: success, or failure
+{ "id": "msg_1234567890_1_abc123xyz", "data": { } }
+{ "id": "msg_1234567890_1_abc123xyz", "error": { "code": "INVALID_PARAMETER", "message": "…" } }
 ```
 
-```swift
-// iOS
-let bridge = JavaScriptBridge(
-    webView: webView, viewController: self,
-    bridgeName: "myApp",
-    commands: DefaultCommands.all()
-)
-```
-
-One parameter. Everything else (the JS global, the callbacks, the message handler name) updates automatically.
-
-### Response Format
-
-Standardized across both platforms: `{ id, data?, error? }`. If `error` is present, it's a failure. If `data` is present (or both absent), it's a success. Return `null` from a command handler for fire-and-forget (no response sent).
-
-### Message Protocol
-
-```json
-{
-  "id": "msg_1234567890_1_abc123xyz",
-  "data": {
-    "action": "showToast",
-    "content": { "message": "Hello!" }
-  }
-}
-```
-
-Messages carry no version. A legacy `version` field sent by an old page is ignored.
+An `error` field rejects the promise. Messages carry no version number.
 
 ### Security
 
-- The `window.jsbridge` object is `Object.freeze()`'d and non-writable
-- Android: only `@JavascriptInterface`-annotated methods are exposed
-- iOS: WKScriptMessageHandler with named handler registration
-- All commands validate their input
-- Threading: Android `@JavascriptInterface` runs on a background thread. All WebView operations are dispatched to main
+- `window.jsbridge` is [frozen][mdn-freeze]. Page scripts cannot replace it.
+- Android exposes only methods marked `@JavascriptInterface`. Those methods run on a background thread. The library moves WebView work to the main thread.
+- iOS registers one named `WKScriptMessageHandler`.
+- Commands validate their input.
+- **Load only content you trust.** Any script in the WebView can call every command you register. Register only the commands the page needs. Review the [Android WebView security tips][android-webview-security].
 
 ---
 
-## Project Structure
+## Contribute
 
-```
+### Project layout
+
+```text
 jsbridge/
-├── bridge.js                  # Unified JS (single source of truth)
-├── index.html                 # Demo page (symlinked into both sample apps)
+├── bridge.js        # The shared JavaScript. Single source of truth.
+├── index.html       # Demo page. Both sample apps load it.
 ├── android/
-│   ├── jsbridge/              # Library module (net.kibotu.jsbridge)
-│   │   ├── build.gradle.kts
-│   │   └── src/main/java/net/kibotu/jsbridge/
-│   │       ├── JavaScriptBridge.kt
-│   │       ├── DefaultCommands.kt
-│   │       ├── SafeAreaService.kt
-│   │       ├── commands/      # One file per action
-│   │       └── decorators/    # WebViewClient/ChromeClient wrappers
-│   └── sample/                # Sample app (depends on :jsbridge)
-│       └── src/main/java/net/kibotu/bridgesample/
+│   ├── jsbridge/    # Library (net.kibotu.jsbridge)
+│   └── sample/      # Sample app
 ├── ios/
-│   ├── JSBridge/              # Swift Package
-│   │   ├── Package.swift
-│   │   └── Sources/JSBridge/
-│   │       ├── JavaScriptBridge.swift
-│   │       ├── DefaultCommands.swift
-│   │       ├── SafeAreaService.swift
-│   │       ├── Commands/      # One file per action
-│   │       └── Resources/bridge.js
-│   └── BridgeSample/          # Sample app (depends on JSBridge)
-│       └── Views/
-└── CHANGELOG.md
+│   ├── JSBridge/    # Swift package
+│   └── BridgeSample # Sample app
+├── test/            # JavaScript tests
+├── .maestro/        # UI flows for the Android sample
+└── docs/            # Images for this README
 ```
 
-### Building
+### Build and test
 
-**Android:** Open `android/` in Android Studio, hit Run on the `:sample` module.
-**iOS:** Open `ios/BridgeSample.xcodeproj` in Xcode, add JSBridge as a local SPM dependency, Cmd+R.
+| Task | Command |
+|------|---------|
+| Run the Android sample | Open `android/` in Android Studio. Run `:sample`. |
+| Run the iOS sample | Open `ios/BridgeSample.xcodeproj` in Xcode. Press <kbd>Cmd</kbd>+<kbd>R</kbd>. |
+| Test JavaScript | `npm test` |
+| Test Android | `cd android && ./gradlew :jsbridge:testDebugUnitTest` |
+| Test iOS | `cd ios/JSBridge && swift test` |
+| UI flows (Android) | `maestro test .maestro/` with [Maestro](https://maestro.mobile.dev/) |
 
-Both apps load the same `index.html` demo page with all bridge features.
+Android needs JDK 21 to build from source.
 
----
+### Changes
 
-## Performance
-
-| Operation | Latency | Pattern |
-|-----------|---------|---------|
-| Fire-and-forget (analytics, haptic) | < 1ms | No `await` |
-| Simple queries (deviceInfo) | 5-15ms | `await` |
-| UI operations (toast, alert) | 10-30ms | `await` |
-| Secure storage | 20-50ms | `await` |
-
-Batch with `Promise.all()`. Cache what doesn't change. Don't await what doesn't matter.
-
----
-
-## Changelog
-
-### 4.0.0 (unreleased)
-
-Breaking changes:
-
-- **Removed `schemaVersion`.** `jsbridge.schemaVersion`, the `version` message field, the `__SCHEMA_VERSION__` template variable, `CallOptions.version`, `JavaScriptBridge.SCHEMA_VERSION` (Android) and `BridgeError.UnsupportedVersion` / `.unsupportedVersion` are gone. Native ignores a legacy `version` field. Use `jsbridge.supports(feature)` instead.
-- `bridgeReady` event detail is now `{ platform, features }`.
-
-New:
-
-- `jsbridge.supports(feature)` and `jsbridge.features`. Commands contribute their action name automatically; override `features` on a `BridgeCommand` to declare finer names.
-- `setMockHandler(fn, { features })` declares what a desktop mock implements.
-- First automated tests: `npm test` (JS), `:jsbridge:testDebugUnitTest` (Android), `swift test` in `ios/JSBridge` (iOS).
-- Maestro UI flows for the Android sample in `.maestro/` (`maestro test .maestro/`).
-- The demo page no longer loads CodeMirror from a CDN. highlight.js is inlined (`npm run update:highlightjs` refreshes it), so the page works offline and behind proxies.
-
-### 3.0.0 (2026-02-21)
-
-Library extraction. Breaking changes:
-
-- **Android**: Bridge code extracted into `:jsbridge` library module (`net.kibotu.jsbridge`). Removed `BridgeMessageHandler` / `DefaultBridgeMessageHandler` indirection. Commands are now passed directly to `JavaScriptBridge.inject()`.
-- **iOS**: Bridge code extracted into `JSBridge` Swift Package. Commands are now passed to `JavaScriptBridge(commands:)` init. No longer auto-registered.
-- **Both platforms**: Commands are opt-in via explicit configuration. Use `DefaultCommands.all()` for all defaults, or pick individual commands.
-- **Multiple bridges**: A single WebView can now host multiple named bridges (e.g. `jsbridge` + `analytics`) with independent command sets.
-- **JS loading**: Bridge JavaScript is loaded from bundled resources (`res/raw/bridge.js` on Android, SPM resource on iOS) instead of inline strings.
-- Directory structure: `android-sample/` → `android/`, `ios-sample/` → `ios/`
-
-### 2.1.0 (2026-02-14)
-
-- `call()` now accepts both `call(action, content?, opts?)` shorthand and `call(msg, opts?)` object form
-- Added `cancelAll()` to reject all pending promises and clean up timeouts
-- Fixed Android error response asymmetry. Command errors now correctly reject promises (aligned with iOS)
-- Added `trackEvent` and `trackScreen` commands on Android
-- Added `requestPermissions` command on iOS
-- Added iOS `BridgeParsingUtils` dictionary extensions for consistent parameter parsing
-- Migrated iOS `BridgeCommand` protocol from completion handlers to `async/await`
-
-### 2.0.0 (2026-02-07)
-
-Unified bridge release. Breaking changes:
-
-- Bridge global renamed from `window.bridge` to `window.jsbridge` (configurable)
-- Response format standardized to `{ id, data?, error? }` (iOS `success` field removed)
-- `on()` now supports multiple handlers (use `off()` to remove)
-- Unified callback names across platforms
-
-New: `bridge.js` single source of truth, `platform` property, `off()`, `setMockHandler()`, `getStats()`, `insets` action, native-driven safe area CSS injection, desktop mock mode.
-
-### 1.0.0 (2026-01-31)
-
-Initial release. `call()`, `on()`, `ready()`, `setDebug()`. Android and iOS samples. Schema versioning. Command pattern.
-
----
+Release notes live in the [changelog](CHANGELOG.md).
 
 ## Support
 
-If jsbridge saved you a few hours (or a few `if` statements), consider [buying me a coffee](https://buymeacoffee.com/kibotu).
+If jsbridge saved you a few hours, or a few `if` statements, you can [buy me a coffee](https://buymeacoffee.com/kibotu). Questions and ideas are welcome in [issues](https://github.com/kibotu/jsbridge/issues).
 
 ## License
 
-See [LICENSE](LICENSE) file.
+[Apache License 2.0](LICENSE).
+
+<!-- References -->
+[android-js-interface]: https://developer.android.com/reference/android/webkit/JavascriptInterface
+[android-webview-security]: https://developer.android.com/privacy-and-security/risks/insecure-webview-native-bridges
+[ios-script-handler]: https://developer.apple.com/documentation/webkit/wkscriptmessagehandler
+[ios-keychain]: https://developer.apple.com/documentation/security/keychain-services
+[chrome-webview-debug]: https://developer.chrome.com/docs/devtools/remote-debugging/webviews
+[safari-inspect]: https://developer.apple.com/documentation/safari-developer-tools/inspecting-ios
+[mdn-custom-properties]: https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties
+[mdn-env]: https://developer.mozilla.org/en-US/docs/Web/CSS/env
+[mdn-visibility]: https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event
+[mdn-promise-all]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all
+[mdn-freeze]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze

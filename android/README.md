@@ -8,8 +8,8 @@ A Kotlin library that gives your WebView a promise-based JavaScript bridge. Web 
 
 ## Requirements
 
-- Android API 23+ (minSdk 23)
-- JDK 17
+- Android API 24+ (minSdk 24)
+- JDK 21 (to build from source)
 - Kotlin
 
 ## Installation
